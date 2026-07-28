@@ -10,7 +10,7 @@ const quotesData = [
     options: ["Фёдор Достоевский", "Лев Толстой", "Иван Тургенев", "Александр Пушкин"]
   },
   {
-    quote: "Человек — это звучит гордо!",
+    quote: "Человек — это звучит гордо!",
     author: "Максим Горький",
     options: ["Максим Горький", "Владимир Маяковский", "Сергей Есенин", "Михаил Булгаков"]
   },
@@ -23,6 +23,16 @@ const quotesData = [
     quote: "Я помню чудное мгновенье: передо мной явилась ты…",
     author: "Александр Пушкин",
     options: ["Александр Пушкин", "Михаил Лермонтов", "Афанасий Фет", "Фёдор Тютчев"]
+  },
+  {
+    quote: "Красота спасёт мир.",
+    author: "Фёдор Достоевский",
+    options: ["Лев Толстой", "Фёдор Достоевский", "Иван Гончаров", "Николай Чернышевский"]
+  },
+  {
+    quote: "Мы в ответе за тех, кого приручили.",
+    author: "Антуан де Сент-Экзюпери",
+    options: ["Антуан де Сент-Экзюпери", "Рэй Брэдбери", "Марк Твен", "Джек Лондон"]
   }
 ];
 
@@ -35,9 +45,11 @@ const root = document.getElementById('root');
 function renderStartScreen() {
   root.innerHTML = `
     <div style="padding: 20px; text-align: center;">
-      <h1>Битва цитат</h1>
-      <p>Угадай, кто сказал эту фразу</p>
-      <button id="startBtn" style="padding: 14px 24px; font-size: 16px;">Начать игру</button>
+      <h1 style="margin-bottom: 10px;">Битва цитат</h1>
+      <p style="color: #666; margin-bottom: 30px;">Угадай, кто сказал эту фразу</p>
+      <button id="startBtn" class="option-btn" style="width: 100%; padding: 16px; font-weight: bold;">
+        Начать игру
+      </button>
     </div>
   `;
   document.getElementById('startBtn').addEventListener('click', startGame);
@@ -55,38 +67,39 @@ function nextRound() {
     return;
   }
 
+  // Выбираем случайную цитату
   const item = quotesData[Math.floor(Math.random() * quotesData.length)];
+  // Перемешиваем варианты ответов
   const options = shuffleArray([...item.options]);
 
   root.innerHTML = `
-    <div style="padding: 16px;">
+    <div>
       <div class="quote-box">
-        <div class="quote-text">«${item.quote}»</div>
+        <p class="quote-text">«${item.quote}»</p>
       </div>
-      <div style="display: flex; flex-direction: column; gap: 10px;">
+      
+      <div class="options-grid">
         ${options.map(opt => `
           <button
             class="option-btn"
-            style="padding: 12px; font-size: 15px; border: 1px solid #ccc; border-radius: 8px;"
             data-author="${opt}"
             data-correct="${opt === item.author}"
+            onclick="handleAnswer(this, '${item.author}')"
           >
             ${opt}
           </button>
         `).join('')}
       </div>
-      <div style="margin-top: 20px; font-size: 16px;">
+
+      <div class="progress-bar">
         Раунд ${round + 1} из ${maxRounds} • Очки: ${score}
       </div>
     </div>
   `;
-
-  document.querySelectorAll('.option-btn').forEach(btn => {
-    btn.addEventListener('click', () => handleAnswer(btn, item.author));
-  });
 }
 
-function handleAnswer(btn, correctAuthor) {
+// Обработчик ответа (выносим в глобальную область, чтобы onclick видел)
+window.handleAnswer = function(btn, correctAuthor) {
   const selectedAuthor = btn.getAttribute('data-author');
   const isCorrect = selectedAuthor === correctAuthor;
 
@@ -94,37 +107,52 @@ function handleAnswer(btn, correctAuthor) {
     score += 1;
     btn.style.backgroundColor = '#4caf50';
     btn.style.color = '#fff';
+    btn.textContent = '✅ Верно!';
   } else {
     btn.style.backgroundColor = '#f44336';
     btn.style.color = '#fff';
-    // подсветить правильный
+    btn.textContent = '❌ Неверно';
+    
+    // Находим правильный ответ и подсвечиваем
     document.querySelectorAll('.option-btn').forEach(b => {
       if (b.getAttribute('data-author') === correctAuthor) {
         b.style.backgroundColor = '#2196f3';
         b.style.color = '#fff';
+        b.textContent = '🎯 Правильный ответ';
       }
     });
   }
 
-  // блокировка кнопок
+  // Блокируем все кнопки
   document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
 
   setTimeout(() => {
     round++;
     nextRound();
-  }, 1500);
-}
+  }, 1500); // Пауза перед следующим раундом
+};
 
 function renderEndScreen() {
   root.innerHTML = `
     <div style="padding: 20px; text-align: center;">
       <h2>Игра окончена!</h2>
       <p>Вы набрали: <b>${score} из ${maxRounds}</b></p>
-      ${score === maxRounds ? '<p>🎉 Отличный результат!</p>' : ''}
-      <button id="restartBtn" style="margin-top: 16px; padding: 12px 24px;">Сыграть ещё</button>
+      ${score === maxRounds ? '<p style="color: #4caf50;">🎉 Отличный результат!</p>' : ''}
+      <br>
+      <button id="restartBtn" class="option-btn" style="width: 100%; padding: 16px;">
+        Сыграть ещё
+      </button>
+      <button id="closeBtn" class="option-btn" style="width: 100%; padding: 16px; margin-top: 10px; background: #eee;">
+        Закрыть приложение
+      </button>
     </div>
   `;
+
   document.getElementById('restartBtn').addEventListener('click', startGame);
+  
+  document.getElementById('closeBtn').addEventListener('click', () => {
+    vkBridge.send('VKWebAppClose');
+  });
 }
 
 function shuffleArray(array) {
@@ -136,19 +164,17 @@ function shuffleArray(array) {
   return arr;
 }
 
-// Инициализация VK Bridge (опционально для полноценной интеграции)
+// --- ГЛАВНАЯ ТОЧКА ВХОДА ---
+// Ждём загрузки VK Bridge перед стартом
 vkBridge
   .load()
   .then(() => {
+    console.log('VK Bridge загружен');
     vkBridge.send('VKWebAppInit');
     renderStartScreen();
   })
   .catch(err => {
-    console.error('VK Bridge не загрузился', err);
-    // Для отладки вне ВК можно всё равно запустить игру
+    console.error('Ошибка загрузки VK Bridge', err);
+    // Даже если VK Bridge не загрузился (например, тест в браузере), показываем игру
     renderStartScreen();
   });
-
-
-// Старт
-renderStartScreen();
