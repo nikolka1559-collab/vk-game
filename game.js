@@ -132,3 +132,45 @@ function renderEndScreen() {
     <div style="padding: 20px; text-align: center;">
       <h2>Игра окончена!</h2>
       <p>Вы набрали: <b>${score} из ${maxRounds}</b></p>
+      ${score === maxRounds ? '<p style="color: #4caf50;">🎉 Отличный результат!</p>' : ''}
+      <br>
+      <button id="restartBtn" class="option-btn" style="width: 100%; padding: 16px;">
+        Сыграть ещё
+      </button>
+      <button id="closeBtn" class="option-btn" style="width: 100%; padding: 16px; margin-top: 10px; background: #eee;">
+        Закрыть приложение
+      </button>
+    </div>
+  `;
+
+  document.getElementById('restartBtn').addEventListener('click', startGame);
+  
+  document.getElementById('closeBtn').addEventListener('click', () => {
+    vkBridge.send('VKWebAppClose');
+  });
+}
+
+function shuffleArray(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// --- ГЛАВНАЯ ТОЧКА ВХОДА: ГАРАНТИРОВАННАЯ ИНИЦИАЛИЗАЦИЯ ---
+(function init() {
+  vkBridge
+    .load()
+    .then(() => {
+      console.log('VK Bridge загружен, отправляем VKWebAppInit');
+      vkBridge.send('VKWebAppInit');
+      renderStartScreen();
+    })
+    .catch(err => {
+      console.error('Ошибка загрузки VK Bridge', err);
+      // Даже если VK Bridge не загрузился (тест вне ВК), показываем игру
+      renderStartScreen();
+    });
+})();
