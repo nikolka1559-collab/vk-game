@@ -1,110 +1,32 @@
-  <!-- VK Bridge -->
-  <script src="https://unpkg.com"></script>
-  <script>
-    // Инициализация VK Bridge
-    vkBridge.send('VKWebAppInit');
-
-    // База цитат
-    const questions = [
-      {
-        quote: "Жизнь — это то, что происходит, пока ты строишь другие планы.",
-        answer: "Джон Леннон",
-        options: ["Джон Леннон", "Альберт Эйнштейн", "Стив Джобс", "Марк Твен"]
-      },
-      {
-        quote: "Единственный способ делать отличную работу — любить то, что делаешь.",
-        answer: "Стив Джобс",
-        options: ["Илон Маск", "Стив Джобс", "Билл Гейтс", "Марк Цукерберг"]
-      },
-      {
-        quote: "Будущее принадлежит тем, кто верит в красоту своей мечты.",
-        answer: "Элеонора Рузвельт",
-        options: ["Маргарет Тэтчер", "Элеонора Рузвельт", "Индира Ганди", "Ангела Меркель"]
-      },
-      {
-        quote: "Не бойтесь потерять тех, кто не побоялся потерять вас.",
-        answer: "Пауло Коэльо",
-        options: ["Пауло Коэльо", "Харуки Мураками", "Виктор Гюго", "Лев Толстой"]
-      }
-    ];
-
-    let score = 0;
-    let currentQuestion = null;
-
-    // Функция перемешивания вариантов ответов
-    function shuffle(array) {
-      const shuffled = [...array];
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-      }
-      return shuffled;
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Битва цитат</title>
+  <script src="https://unpkg.com/@vkontakte/vkui@4.29.1/dist/vkui.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/@vkontakte/vkui@4.29.1/dist/vkui.css" />
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", sans-serif; }
+    .quote-box {
+      background: #f5f5f7;
+      padding: 16px;
+      border-radius: 12px;
+      margin: 16px 0;
+      text-align: center;
     }
-
-    // Автоматический старт игры при загрузке страницы
-    window.onload = function() {
-      nextRound();
-    };
-
-    function nextRound() {
-      // Прячем окно с результатом, показываем игру
-      document.getElementById('result-view').classList.add('hidden');
-      document.getElementById('game-view').classList.remove('hidden');
-
-      if (questions.length === 0) {
-        alert("Вопросы закончились!");
-        return;
-      }
-
-      // Выбираем случайный вопрос
-      currentQuestion = questions[Math.floor(Math.random() * questions.length)];
-
-      // Выводим текст цитаты
-      document.getElementById('quote-text').textContent = currentQuestion.quote;
-
-      // Очищаем и создаем кнопки вариантов ответов
-      const optionsContainer = document.getElementById('options-container');
-      optionsContainer.innerHTML = '';
-
-      // Перемешиваем варианты перед выводом
-      const shuffledOptions = shuffle(currentQuestion.options);
-
-      shuffledOptions.forEach(option => {
-        const btn = document.createElement('button');
-        btn.textContent = option;
-        btn.onclick = () => checkAnswer(option, btn);
-        optionsContainer.appendChild(btn);
-      });
+    .quote-text {
+      font-size: 18px;
+      font-weight: 500;
+      color: #222;
+      line-height: 1.4;
     }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
 
-    function checkAnswer(selectedOption, clickedButton) {
-      const allButtons = document.querySelectorAll('#options-container button');
-      
-      // Блокируем клики по остальным кнопкам после выбора
-      allButtons.forEach(btn => btn.disabled = true);
-
-      const isCorrect = selectedOption === currentQuestion.answer;
-      
-      if (isCorrect) {
-        clickedButton.classList.add('correct');
-        score++;
-        document.getElementById('score').textContent = score;
-        document.getElementById('result-message').textContent = "Правильно! Молодец.";
-      } else {
-        clickedButton.classList.add('wrong');
-        document.getElementById('result-message').textContent = `Неверно. Правильный ответ: ${currentQuestion.answer}`;
-        
-        // Подсвечиваем верную кнопку зелёным для подсказки
-        allButtons.forEach(btn => {
-          if (btn.textContent === currentQuestion.answer) {
-            btn.classList.add('correct');
-          }
-        });
-      }
-
-      // Показываем блок с кнопкой "Следующий раунд"
-      document.getElementById('result-view').classList.remove('hidden');
-    }
-  </script>
+  <script src="https://unpkg.com/@vkontakte/vk-bridge@2.0.0/dist/browser.min.js"></script>
+  <script src="./game.js"></script>
 </body>
 </html>
