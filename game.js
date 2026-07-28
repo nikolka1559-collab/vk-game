@@ -137,7 +137,18 @@ function shuffleArray(array) {
 }
 
 // Инициализация VK Bridge (опционально для полноценной интеграции)
-vkBridge.send('VKWebAppInit');
+vkBridge
+  .load()
+  .then(() => {
+    vkBridge.send('VKWebAppInit');
+    renderStartScreen();
+  })
+  .catch(err => {
+    console.error('VK Bridge не загрузился', err);
+    // Для отладки вне ВК можно всё равно запустить игру
+    renderStartScreen();
+  });
+
 
 // Старт
 renderStartScreen();
