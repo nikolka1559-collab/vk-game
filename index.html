@@ -2,11 +2,10 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <!-- Важно для корректного отображения внутри ВК -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Битва цитат</title>
 
-  <!-- Стили VKUI для красивого нативного вида -->
+  <!-- VK UI стили (чтобы выглядело как родное приложение ВК) -->
   <link rel="stylesheet" href="https://unpkg.com/@vkontakte/vkui@4.29.1/dist/vkui.css" />
 
   <style>
@@ -55,8 +54,8 @@
       transition: all 0.2s;
       text-align: left;
     }
-    .option-btn:hover {
-      background: #f0f0f0;
+    .option-btn:active {
+      opacity: 0.8;
     }
     .progress-bar {
       margin-top: 20px;
@@ -69,10 +68,10 @@
 <body>
   <div id="root" class="app-container"></div>
 
-  <!-- 1. ЭМУЛЯЦИЯ VK BRIDGE ДЛЯ ТЕСТОВ В БРАУЗЕРЕ -->
+  <!-- 1. ЭМУЛЯЦИЯ vkBridge ТОЛЬКО для отладки в браузере (НЕ в ВК) -->
+  <!-- Она НЕ должна мешать работе внутри ВКонтакте -->
   <script>
     if (typeof vkBridge === 'undefined') {
-      console.warn('VK Bridge не найден. Запуск в режиме эмуляции (для тестов вне ВК).');
       window.vkBridge = {
         load: () => Promise.resolve(),
         send: (method, params) => {
@@ -87,10 +86,10 @@
     }
   </script>
 
-  <!-- 2. ПОДКЛЮЧЕНИЕ НАСТОЯЩЕГО VK BRIDGE -->
+  <!-- 2. ПОДКЛЮЧЕНИЕ VK BRIDGE -->
   <script src="https://unpkg.com/@vkontakte/vk-bridge@2.0.0/dist/browser.min.js"></script>
 
-  <!-- 3. НАШ СКРИПТ ИГРЫ -->
+  <!-- 3. ИГРА -->
   <script src="./game.js"></script>
 </body>
 </html>
