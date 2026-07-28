@@ -6,7 +6,7 @@
   <title>Битва цитат</title>
 
   <!-- VK UI стили (чтобы выглядело как родное приложение ВК) -->
-  <link rel="stylesheet" href="https://unpkg.com/@vkontakte/vkui@4.29.1/dist/vkui.css" />
+  <link rel="stylesheet" href="https://unpkg.com" />
 
   <style>
     body {
@@ -68,28 +68,34 @@
 <body>
   <div id="root" class="app-container"></div>
 
-  <!-- 1. ЭМУЛЯЦИЯ vkBridge ТОЛЬКО для отладки в браузере (НЕ в ВК) -->
-  <!-- Она НЕ должна мешать работе внутри ВКонтакте -->
+  <!-- 1. ПОДКЛЮЧЕНИЕ СОВРЕМЕННОЙ ВЕРСИИ VK BRIDGE -->
+  <!-- Скрипт должен загружаться строго ДО кода эмуляции -->
+  <script src="https://unpkg.com"></script>
+
+  <!-- 2. ЭМУЛЯЦИЯ vkBridge ДЛЯ РАЗРАБОТКИ ВНЕ ВК -->
+  <!-- Сработает только на локальном компьютере, внутри ВК этот блок проигнорируется -->
   <script>
-    if (typeof vkBridge === 'undefined') {
+    if (typeof vkBridge === 'undefined' || !vkBridge.send) {
       window.vkBridge = {
-        load: () => Promise.resolve(),
-        send: (method, params) => {
+        send: function(method, params) {
           console.log('[VK Bridge Emulation] send:', method, params);
           if (method === 'VKWebAppClose') {
             alert('Приложение должно закрыться (эмуляция).');
           }
+          // Возвращаем успешный Promise, чтобы скрипты игры не ломались
+          return Promise.resolve({ result: true });
         },
-        on: () => {},
-        ready: () => Promise.resolve()
+        sendPromise: function(method, params) {
+          return Promise.resolve({ result: true });
+        },
+        subscribe: function() {},
+        unsubscribe: function() {}
       };
     }
   </script>
 
-  <!-- 2. ПОДКЛЮЧЕНИЕ VK BRIDGE -->
-  <script src="https://unpkg.com/@vkontakte/vk-bridge@2.0.0/dist/browser.min.js"></script>
-
   <!-- 3. ИГРА -->
+  <!-- Этот файл теперь получит настоящий vkBridge внутри экосистемы ВК -->
   <script src="./game.js"></script>
 </body>
 </html>
