@@ -2,31 +2,95 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Важно для корректного отображения внутри ВК -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Битва цитат</title>
-  <script src="https://unpkg.com/@vkontakte/vkui@4.29.1/dist/vkui.js"></script>
+
+  <!-- Стили VKUI для красивого нативного вида -->
   <link rel="stylesheet" href="https://unpkg.com/@vkontakte/vkui@4.29.1/dist/vkui.css" />
+
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", sans-serif; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", sans-serif;
+      background-color: #fff;
+      margin: 0;
+      padding: 0;
+    }
+    .app-container {
+      padding: 16px;
+      max-width: 500px;
+      margin: 0 auto;
+    }
     .quote-box {
       background: #f5f5f7;
-      padding: 16px;
+      padding: 20px;
       border-radius: 12px;
-      margin: 16px 0;
       text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 24px;
     }
     .quote-text {
       font-size: 18px;
       font-weight: 500;
       color: #222;
       line-height: 1.4;
+      margin: 0;
+    }
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    @media (max-width: 400px) {
+      .options-grid { grid-template-columns: 1fr; }
+    }
+    .option-btn {
+      padding: 14px;
+      font-size: 15px;
+      border: none;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+    }
+    .option-btn:hover {
+      background: #f0f0f0;
+    }
+    .progress-bar {
+      margin-top: 20px;
+      font-size: 15px;
+      color: #555;
+      text-align: center;
     }
   </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root" class="app-container"></div>
 
+  <!-- 1. ЭМУЛЯЦИЯ VK BRIDGE ДЛЯ ТЕСТОВ В БРАУЗЕРЕ -->
+  <script>
+    if (typeof vkBridge === 'undefined') {
+      console.warn('VK Bridge не найден. Запуск в режиме эмуляции (для тестов вне ВК).');
+      window.vkBridge = {
+        load: () => Promise.resolve(),
+        send: (method, params) => {
+          console.log('[VK Bridge Emulation] send:', method, params);
+          if (method === 'VKWebAppClose') {
+            alert('Приложение должно закрыться (эмуляция).');
+          }
+        },
+        on: () => {},
+        ready: () => Promise.resolve()
+      };
+    }
+  </script>
+
+  <!-- 2. ПОДКЛЮЧЕНИЕ НАСТОЯЩЕГО VK BRIDGE -->
   <script src="https://unpkg.com/@vkontakte/vk-bridge@2.0.0/dist/browser.min.js"></script>
+
+  <!-- 3. НАШ СКРИПТ ИГРЫ -->
   <script src="./game.js"></script>
 </body>
 </html>
