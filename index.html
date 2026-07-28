@@ -1,109 +1,10 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Битва цитат</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f5f6f8;
-      color: #1c1e21;
-      margin: 0;
-      padding: 12px;
-    }
-    .container {
-      max-width: 500px;
-      margin: auto;
-    }
-    h1 {
-      text-align: center;
-      font-size: 22px;
-      margin-bottom: 8px;
-    }
-    .score-bar {
-      text-align: center;
-      margin-bottom: 16px;
-      font-weight: 600;
-      font-size: 18px;
-    }
-    .quote-box {
-      background: white;
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      margin-bottom: 20px;
-      word-wrap: break-word;
-    }
-    .quote-text {
-      font-size: 17px;
-      line-height: 1.4;
-      margin-bottom: 16px;
-    }
-    .options {
-      display: grid;
-      gap: 10px;
-    }
-    button {
-      background: white;
-      border: 1px solid #d8d9dd;
-      border-radius: 8px;
-      padding: 14px;
-      text-align: left;
-      font-size: 15px;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    button:active {
-      background: #e9ebee;
-    }
-    button.correct {
-      background: #2ed883;
-      color: white;
-      border-color: #2ed883;
-    }
-    button.wrong {
-      background: #ff5e5e;
-      color: white;
-      border-color: #ff5e5e;
-    }
-    .feedback {
-      margin-top: 16px;
-      padding: 12px;
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-    .hidden {
-      display: none;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>Битва цитат</h1>
-    <div class="score-bar">Счёт: <span id="score">0</span></div>
-
-    <div id="game-view">
-      <div class="quote-box">
-        <div class="quote-text" id="quote-text">Загрузка...</div>
-      </div>
-      <div class="options" id="options-container"></div>
-    </div>
-
-    <div id="result-view" class="hidden feedback">
-      <p id="result-message"></p>
-      <button onclick="nextRound()" style="width:100%; margin-top:12px;">Следующий раунд</button>
-    </div>
-  </div>
-
   <!-- VK Bridge -->
-  <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+  <script src="https://unpkg.com"></script>
   <script>
     // Инициализация VK Bridge
     vkBridge.send('VKWebAppInit');
 
-    // База цитат (для MVP можно хранить прямо здесь)
+    // База цитат
     const questions = [
       {
         quote: "Жизнь — это то, что происходит, пока ты строишь другие планы.",
@@ -128,8 +29,9 @@
     ];
 
     let score = 0;
-    let currentQuestionIndex = -1;
+    let currentQuestion = null;
 
+    // Функция перемешивания вариантов ответов
     function shuffle(array) {
       const shuffled = [...array];
       for (let i = shuffled.length - 1; i > 0; i--) {
@@ -139,17 +41,70 @@
       return shuffled;
     }
 
-    function startGame() {
+    // Автоматический старт игры при загрузке страницы
+    window.onload = function() {
       nextRound();
-    }
+    };
 
     function nextRound() {
+      // Прячем окно с результатом, показываем игру
+      document.getElementById('result-view').classList.add('hidden');
+      document.getElementById('game-view').classList.remove('hidden');
+
       if (questions.length === 0) {
         alert("Вопросы закончились!");
         return;
       }
 
-      const q = questions[Math.floor(Math.random() * questions.length)];
-      currentQuestionIndex = q; // сохраняем вопрос, чтобы проверить ответ
+      // Выбираем случайный вопрос
+      currentQuestion = questions[Math.floor(Math.random() * questions.length)];
 
-      document.getElementById('quote-text').textContent = q.quote;
+      // Выводим текст цитаты
+      document.getElementById('quote-text').textContent = currentQuestion.quote;
+
+      // Очищаем и создаем кнопки вариантов ответов
+      const optionsContainer = document.getElementById('options-container');
+      optionsContainer.innerHTML = '';
+
+      // Перемешиваем варианты перед выводом
+      const shuffledOptions = shuffle(currentQuestion.options);
+
+      shuffledOptions.forEach(option => {
+        const btn = document.createElement('button');
+        btn.textContent = option;
+        btn.onclick = () => checkAnswer(option, btn);
+        optionsContainer.appendChild(btn);
+      });
+    }
+
+    function checkAnswer(selectedOption, clickedButton) {
+      const allButtons = document.querySelectorAll('#options-container button');
+      
+      // Блокируем клики по остальным кнопкам после выбора
+      allButtons.forEach(btn => btn.disabled = true);
+
+      const isCorrect = selectedOption === currentQuestion.answer;
+      
+      if (isCorrect) {
+        clickedButton.classList.add('correct');
+        score++;
+        document.getElementById('score').textContent = score;
+        document.getElementById('result-message').textContent = "Правильно! Молодец.";
+      } else {
+        clickedButton.classList.add('wrong');
+        document.getElementById('result-message').textContent = `Неверно. Правильный ответ: ${currentQuestion.answer}`;
+        
+        // Подсвечиваем верную кнопку зелёным для подсказки
+        allButtons.forEach(btn => {
+          if (btn.textContent === currentQuestion.answer) {
+            btn.classList.add('correct');
+          }
+        });
+      }
+
+      // Показываем блок с кнопкой "Следующий раунд"
+      document.getElementById('result-view').classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>
