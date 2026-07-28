@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>VK Clicker Pro</title>
-    <!-- Подключаем самую стабильную универсальную сборку VK Bridge через jsDelivr -->
+    <title>VK Clicker Stable</title>
+    <!-- Официальный скрипт VK Bridge -->
     <script src="https://jsdelivr.net"></script>
     <style>
         body {
@@ -24,7 +24,6 @@
             font-size: 28px;
             margin-bottom: 20px;
             font-weight: bold;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
         #coin {
             width: 160px;
@@ -41,9 +40,7 @@
             user-select: none;
             transition: transform 0.05s;
         }
-        #coin:active {
-            transform: scale(0.93);
-        }
+        #coin:active { transform: scale(0.93); }
         .btn {
             margin-top: 15px;
             padding: 12px 24px;
@@ -55,9 +52,7 @@
             cursor: pointer;
             box-shadow: 0 4px 6px rgba(0,0,0,0.2);
             width: 220px;
-            transition: opacity 0.2s;
         }
-        .btn:active { opacity: 0.8; }
         #ad-button { background-color: #4bb34b; }
         #leaderboard-button { background-color: #ff9200; }
     </style>
@@ -66,12 +61,12 @@
 
     <div id="score-container">Монеты: <span id="score">0</span></div>
     <div id="coin">💰</div>
-    <button id="ad-button" class="btn">+100 за рекламу</button>
+    <button id="ad-button" class="btn">+100 (Тест-Бонус)</button>
     <button id="leaderboard-button" class="btn">🏆 Таблица лидеров</button>
 
     <script>
-        // ЗАЩИТА: Автоматически находим VK Bridge в системе, как бы он ни назвался
-        const bridge = window.vkBridge || window.vkbridge || (window.vk && window.vk.bridge) || vkBridge;
+        // Поиск библиотеки во всех возможных глобальных переменных
+        const bridge = window.vkBridge || window.vkbridge || (window.vk && window.vk.bridge);
 
         let score = 0;
         const scoreEl = document.getElementById('score');
@@ -79,74 +74,78 @@
         const adButton = document.getElementById('ad-button');
         const leadButton = document.getElementById('leaderboard-button');
 
-        // Проверяем, нашелся ли скрипт
-        if (!bridge) {
-            alert("Критическая ошибка: библиотека VK Bridge не загрузилась. Отключите блокировщик рекламы или VPN.");
-            console.error("VK Bridge не найден ни в одной из глобальных переменных.");
-        } else {
-            // Инициализация VK Bridge и загрузка сохранения
+        // Безопасный запуск без блокировки загрузки страницы
+        if (bridge && typeof bridge.send === 'function') {
             bridge.send("VKWebAppInit", {})
                 .then(() => {
-                    console.log("VK Bridge успешно запущен!");
-                    loadScore(); 
+                    console.log("VK Bridge подключен");
+                    loadScore();
                 })
-                .catch(err => console.error("Ошибка инициализации Bridge:", err));
+                .catch(err => console.log("ВК отклонил инициализацию, работаем локально", err));
+        } else {
+            console.log("Запущено вне ВКонтакте или блокировщик вырезал Bridge");
         }
 
         // Логика клика
         coinEl.addEventListener('click', () => {
             score++;
-            updateScoreUI();
-            saveScore(); 
-            if(bridge) bridge.send("VKWebAppTapticImpactOccurred", {"style": "light"}).catch(e => {});
+            scoreEl.textContent = score;
+            saveScore();
+            if (bridge) bridge.send("VKWebAppTapticImpactOccurred", {"style": "light"}).catch(e => {});
         });
 
-        // Просмотр рекламы
+        // БЕЗОПАСНАЯ КНОПКА: Сначала просто выдает монеты, чтобы обойти AdBlock при тестах
         adButton.addEventListener('click', () => {
-            if(!bridge) return alert("Платформа ВК недоступна");
+            if (!bridge) {
+                // Если мы тестируем в обычном браузере без ВК
+                score += 100;
+                scoreEl.textContent = score;
+                alert("Локальный тест: +100 монет!");
+                return;
+            }
+
+            // Пытаемся вызвать ВК-рекламу, но если AdBlock её режет, игра НЕ упадет
             bridge.send("VKWebAppShowRewardedVideo", {})
                 .then(data => {
-                    if (data.result) {
+                    if (data && data.result) {
                         score += 100;
-                        updateScoreUI();
-                        saveScore();
+                        scoreEl.textContent = score;
                     }
                 })
-                .catch(() => alert("Реклама сейчас недоступна"));
+                .catch(err => {
+                    console.log("Реклама заблокирована AdBlock-ом, начисляем тестовый бонус");
+                    score += 100;
+                    scoreEl.textContent = score;
+                    alert("Тестовый режим: Реклама в ВК недоступна, но +100 монет начислено!");
+                });
         });
 
-        // Открытие таблицы лидеров ВК
+        // Лидерборд
         leadButton.addEventListener('click', () => {
-            if(!bridge) return alert("Платформа ВК недоступна");
-            bridge.send("VKWebAppShowLeaderBoardBox", { "user_result": score })
-            .catch(err => {
-                console.error("Ошибка лидерборда", err);
-                alert("Таблица лидеров заработает после публикации игры в каталоге.");
-            });
+            if (bridge) {
+                bridge.send("VKWebAppShowLeaderBoardBox", { "user_result": score })
+                .catch(() => alert("Таблица лидеров откроется после публикации игры"));
+            } else {
+                alert("Лидерборд доступен только внутри ВКонтакте");
+            }
         });
-
-        function updateScoreUI() {
-            scoreEl.textContent = score;
-        }
 
         function saveScore() {
-            if(!bridge) return;
-            bridge.send("VKWebAppStorageSet", {
-                "key": "user_coin_score",
-                "value": score.toString()
-            }).catch(err => console.error("Ошибка сохранения в облако", err));
+            if (bridge) {
+                bridge.send("VKWebAppStorageSet", { "key": "coins", "value": score.toString() }).catch(e => {});
+            }
         }
 
         function loadScore() {
-            if(!bridge) return;
-            bridge.send("VKWebAppStorageGet", { "keys": ["user_coin_score"] })
-            .then(data => {
-                if (data.keys && data.keys[0] && data.keys[0].value) {
-                    score = parseInt(data.keys[0].value, 10) || 0;
-                    updateScoreUI();
-                }
-            })
-            .catch(err => console.error("Ошибка загрузки из облака", err));
+            if (bridge) {
+                bridge.send("VKWebAppStorageGet", { "keys": ["coins"] })
+                .then(data => {
+                    if (data && data.keys && data.keys[0] && data.keys[0].value) {
+                        score = parseInt(data.keys[0].value, 10) || 0;
+                        scoreEl.textContent = score;
+                    }
+                }).catch(e => {});
+            }
         }
     </script>
 </body>
