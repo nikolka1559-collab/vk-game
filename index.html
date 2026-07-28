@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>VK Clicker New Domain</title>
-    <!-- Подключаем стабильную версию VK Bridge -->
+    <title>VK Clicker Fix</title>
+    <!-- Загружаем библиотеку ВК -->
     <script src="https://jsdelivr.net"></script>
     <style>
         body {
@@ -61,12 +61,19 @@
 
     <div id="score-container">Монеты: <span id="score">0</span></div>
     <div id="coin">💰</div>
-    <button id="ad-button" class="btn">+100 (Тест-Бонус)</button>
+    <button id="ad-button" class="btn">+100 за рекламу</button>
     <button id="leaderboard-button" class="btn">🏆 Таблица лидеров</button>
 
     <script>
-        // Поиск библиотеки в системе
-        const bridge = window.vkBridge || window.vkbridge || (window.vk && window.vk.bridge);
+        // ЖЕСТКИЙ СИГНАЛ ДЛЯ ВК: Сразу же убираем синий экран загрузки платформы
+        if (window.vkBridge) {
+            vkBridge.send('VKWebAppInit')
+                .then(() => {
+                    console.log("Экран загрузки ВК успешно пробит!");
+                    loadScore();
+                })
+                .catch(e => console.log("Ошибка инициализации", e));
+        }
 
         let score = 0;
         const scoreEl = document.getElementById('score');
@@ -74,37 +81,24 @@
         const adButton = document.getElementById('ad-button');
         const leadButton = document.getElementById('leaderboard-button');
 
-        // АДАПТАЦИЯ ПОД VK.RU: Настройка безопасного источника данных
-        if (bridge && typeof bridge.send === 'function') {
-            
-            // Явно указываем Bridge, что мы можем работать в новом веб-пространстве vk.ru
-            bridge.send("VKWebAppInit", {})
-                .then(() => {
-                    console.log("VK Bridge успешно адаптирован под домен");
-                    loadScore();
-                })
-                .catch(err => {
-                    console.log("Локальный запуск фрейма", err);
-                    loadScore();
-                });
-        }
-
-        // Логика клика
+        // Логика клика по монете
         coinEl.addEventListener('click', () => {
             score++;
             scoreEl.textContent = score;
             saveScore();
-            if (bridge) bridge.send("VKWebAppTapticImpactOccurred", {"style": "light"}).catch(e => {});
+            if (window.vkBridge) {
+                vkBridge.send("VKWebAppTapticImpactOccurred", {"style": "light"}).catch(e => {});
+            }
         });
 
-        // Бонусная кнопка
+        // Просмотр рекламы
         adButton.addEventListener('click', () => {
-            if (!bridge) {
+            if (!window.vkBridge) {
                 score += 100;
                 scoreEl.textContent = score;
                 return;
             }
-            bridge.send("VKWebAppShowRewardedVideo", {})
+            vkBridge.send("VKWebAppShowRewardedVideo", {})
                 .then(data => {
                     if (data && data.result) {
                         score += 100;
@@ -112,28 +106,27 @@
                     }
                 })
                 .catch(() => {
-                    // Если домен ругается на рекламу, просто даем бонус для теста
-                    score += 100;
+                    score += 100; // Начисляем тестовый бонус, если реклама заблокирована
                     scoreEl.textContent = score;
                 });
         });
 
-        // Лидерборд
+        // Таблица лидеров
         leadButton.addEventListener('click', () => {
-            if (bridge) {
-                bridge.send("VKWebAppShowLeaderBoardBox", { "user_result": score }).catch(() => {});
+            if (window.vkBridge) {
+                vkBridge.send("VKWebAppShowLeaderBoardBox", { "user_result": score }).catch(() => {});
             }
         });
 
         function saveScore() {
-            if (bridge) {
-                bridge.send("VKWebAppStorageSet", { "key": "coins_new", "value": score.toString() }).catch(e => {});
+            if (window.vkBridge) {
+                vkBridge.send("VKWebAppStorageSet", { "key": "coins_final", "value": score.toString() }).catch(e => {});
             }
         }
 
         function loadScore() {
-            if (bridge) {
-                bridge.send("VKWebAppStorageGet", { "keys": ["coins_new"] })
+            if (window.vkBridge) {
+                vkBridge.send("VKWebAppStorageGet", { "keys": ["coins_final"] })
                 .then(data => {
                     if (data && data.keys && data.keys[0] && data.keys[0].value) {
                         score = parseInt(data.keys[0].value, 10) || 0;
