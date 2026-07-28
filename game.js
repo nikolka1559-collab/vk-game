@@ -146,7 +146,9 @@ function renderEndScreen() {
   document.getElementById('restartBtn').addEventListener('click', startGame);
   
   document.getElementById('closeBtn').addEventListener('click', () => {
-    vkBridge.send('VKWebAppClose');
+    if (typeof vkBridge !== 'undefined' && vkBridge.send) {
+      vkBridge.send('VKWebAppClose');
+    }
   });
 }
 
@@ -159,18 +161,24 @@ function shuffleArray(array) {
   return arr;
 }
 
-// --- ГЛАВНАЯ ТОЧКА ВХОДА: ГАРАНТИРОВАННАЯ ИНИЦИАЛИЗАЦИЯ ---
+// --- ИСПРАВЛЕННАЯ ТОЧКА ВХОДА ---
 (function init() {
-  vkBridge
-    .load()
-    .then(() => {
-      console.log('VK Bridge загружен, отправляем VKWebAppInit');
-      vkBridge.send('VKWebAppInit');
-      renderStartScreen();
-    })
-    .catch(err => {
-      console.error('Ошибка загрузки VK Bridge', err);
-      // Даже если VK Bridge не загрузился (тест вне ВК), показываем игру
-      renderStartScreen();
-    });
+  // Проверяем, подключена ли библиотека VK Bridge вообще
+  if (typeof vkBridge !== 'undefined' && vkBridge.send) {
+    console.log('VK Bridge обнаружен, отправляем VKWebAppInit...');
+    
+    vkBridge.send('VKWebAppInit')
+      .then((data) => {
+        console.log('VK Bridge успешно инициализирован:', data);
+        renderStartScreen();
+      })
+      .catch((err) => {
+        console.error('Ошибка при вызове VKWebAppInit:', err);
+        // Показываем интерфейс в любом случае, чтобы приложение не висло на белом экране
+        renderStartScreen();
+      });
+  } else {
+    console.log('VK Bridge не найден. Запуск в режиме обычного браузера.');
+    renderStartScreen();
+  }
 })();
