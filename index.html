@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>VK Clicker Pro</title>
+    <script src="https://unpkg.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #4a76a8, #2c4f7c);
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #score-container {
+            font-size: 28px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        #coin {
+            width: 160px;
+            height: 160px;
+            background: #ffd700;
+            border-radius: 50%;
+            border: 8px solid #daa520;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 65px;
+            user-select: none;
+            transition: transform 0.05s;
+        }
+        #coin:active {
+            transform: scale(0.93);
+        }
+        .btn {
+            margin-top: 15px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            width: 220px;
+            transition: opacity 0.2s;
+        }
+        .btn:active { opacity: 0.8; }
+        #ad-button { background-color: #4bb34b; }
+        #leaderboard-button { background-color: #ff9200; }
+    </style>
+</head>
+<body>
+
+    <div id="score-container">Монеты: <span id="score">0</span></div>
+    <div id="coin">💰</div>
+    <button id="ad-button" class="btn">+100 за рекламу</button>
+    <button id="leaderboard-button" class="btn">🏆 Таблица лидеров</button>
+
+    <script>
+        let score = 0;
+        const scoreEl = document.getElementById('score');
+        const coinEl = document.getElementById('coin');
+        const adButton = document.getElementById('ad-button');
+        const leadButton = document.getElementById('leaderboard-button');
+
+        // 1. Инициализация VK Bridge и загрузка сохранения
+        vkBridge.send("VKWebAppInit", {})
+            .then(() => {
+                console.log("VK Bridge готов");
+                loadScore(); // Загружаем баланс игрока из облака ВК
+            })
+            .catch(err => console.error("Ошибка инициализации", err));
+
+        // 2. Логика клика
+        coinEl.addEventListener('click', () => {
+            score++;
+            updateScoreUI();
+            saveScore(); // Сохраняем прогресс при каждом клике
+            vkBridge.send("VKWebAppTapticImpactOccurred", {"style": "light"}).catch(e => {});
+        });
+
+        // 3. Просмотр рекламы
+        adButton.addEventListener('click', () => {
+            vkBridge.send("VKWebAppShowRewardedVideo", {})
+                .then(data => {
+                    if (data.result) {
+                        score += 100;
+                        updateScoreUI();
+                        saveScore();
+                    }
+                })
+                .catch(() => alert("Реклама сейчас недоступна"));
+        });
+
+        // 4. Открытие таблицы лидеров ВК (среди друзей)
+        leadButton.addEventListener('click', () => {
+            // Отправляем текущий результат в игровой счет ВК, чтобы обновить топ
+            vkBridge.send("VKWebAppShowLeaderBoardBox", {
+                "user_result": score
+            })
+            .catch(err => {
+                console.error("Ошибка открытия таблицы лидеров", err);
+                alert("Для работы таблицы лидеров игра должна быть одобрена и опубликована в каталоге ВК.");
+            });
+        });
+
+        // Обновление текста на экране
+        function updateScoreUI() {
+            scoreEl.textContent = score;
+        }
+
+        // Функция сохранения баланса в VK Storage
+        function saveScore() {
+            vkBridge.send("VKWebAppStorageSet", {
+                "key": "user_coin_score",
+                "value": score.toString()
+            }).catch(err => console.error("Ошибка сохранения в облако", err));
+        }
+
+        // Функция загрузки баланса из VK Storage
+        function loadScore() {
+            vkBridge.send("VKWebAppStorageGet", {
+                "keys": ["user_coin_score"]
+            })
+            .then(data => {
+                if (data.keys && data.keys[0].value) {
+                    score = parseInt(data.keys[0].value, 10) || 0;
+                    updateScoreUI();
+                }
+            })
+            .catch(err => console.error("Ошибка загрузки из облака", err));
+        }
+    </script>
+</body>
+</html>
