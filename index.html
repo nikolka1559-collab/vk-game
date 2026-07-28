@@ -1,140 +1,155 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>VK Clicker Fix</title>
-    <!-- Загружаем библиотеку ВК -->
-    <script src="https://jsdelivr.net"></script>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background: linear-gradient(135deg, #4a76a8, #2c4f7c);
-            color: white;
-            font-family: -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            overflow: hidden;
-        }
-        #score-container {
-            font-size: 28px;
-            margin-bottom: 20px;
-            font-weight: bold;
-        }
-        #coin {
-            width: 160px;
-            height: 160px;
-            background: #ffd700;
-            border-radius: 50%;
-            border: 8px solid #daa520;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 65px;
-            user-select: none;
-            transition: transform 0.05s;
-        }
-        #coin:active { transform: scale(0.93); }
-        .btn {
-            margin-top: 15px;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            width: 220px;
-        }
-        #ad-button { background-color: #4bb34b; }
-        #leaderboard-button { background-color: #ff9200; }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Битва цитат</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f6f8;
+      color: #1c1e21;
+      margin: 0;
+      padding: 12px;
+    }
+    .container {
+      max-width: 500px;
+      margin: auto;
+    }
+    h1 {
+      text-align: center;
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+    .score-bar {
+      text-align: center;
+      margin-bottom: 16px;
+      font-weight: 600;
+      font-size: 18px;
+    }
+    .quote-box {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 20px;
+      word-wrap: break-word;
+    }
+    .quote-text {
+      font-size: 17px;
+      line-height: 1.4;
+      margin-bottom: 16px;
+    }
+    .options {
+      display: grid;
+      gap: 10px;
+    }
+    button {
+      background: white;
+      border: 1px solid #d8d9dd;
+      border-radius: 8px;
+      padding: 14px;
+      text-align: left;
+      font-size: 15px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button:active {
+      background: #e9ebee;
+    }
+    button.correct {
+      background: #2ed883;
+      color: white;
+      border-color: #2ed883;
+    }
+    button.wrong {
+      background: #ff5e5e;
+      color: white;
+      border-color: #ff5e5e;
+    }
+    .feedback {
+      margin-top: 16px;
+      padding: 12px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
 </head>
 <body>
+  <div class="container">
+    <h1>Битва цитат</h1>
+    <div class="score-bar">Счёт: <span id="score">0</span></div>
 
-    <div id="score-container">Монеты: <span id="score">0</span></div>
-    <div id="coin">💰</div>
-    <button id="ad-button" class="btn">+100 за рекламу</button>
-    <button id="leaderboard-button" class="btn">🏆 Таблица лидеров</button>
+    <div id="game-view">
+      <div class="quote-box">
+        <div class="quote-text" id="quote-text">Загрузка...</div>
+      </div>
+      <div class="options" id="options-container"></div>
+    </div>
 
-    <script>
-        // ЖЕСТКИЙ СИГНАЛ ДЛЯ ВК: Сразу же убираем синий экран загрузки платформы
-        if (window.vkBridge) {
-            vkBridge.send('VKWebAppInit')
-                .then(() => {
-                    console.log("Экран загрузки ВК успешно пробит!");
-                    loadScore();
-                })
-                .catch(e => console.log("Ошибка инициализации", e));
-        }
+    <div id="result-view" class="hidden feedback">
+      <p id="result-message"></p>
+      <button onclick="nextRound()" style="width:100%; margin-top:12px;">Следующий раунд</button>
+    </div>
+  </div>
 
-        let score = 0;
-        const scoreEl = document.getElementById('score');
-        const coinEl = document.getElementById('coin');
-        const adButton = document.getElementById('ad-button');
-        const leadButton = document.getElementById('leaderboard-button');
+  <!-- VK Bridge -->
+  <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+  <script>
+    // Инициализация VK Bridge
+    vkBridge.send('VKWebAppInit');
 
-        // Логика клика по монете
-        coinEl.addEventListener('click', () => {
-            score++;
-            scoreEl.textContent = score;
-            saveScore();
-            if (window.vkBridge) {
-                vkBridge.send("VKWebAppTapticImpactOccurred", {"style": "light"}).catch(e => {});
-            }
-        });
+    // База цитат (для MVP можно хранить прямо здесь)
+    const questions = [
+      {
+        quote: "Жизнь — это то, что происходит, пока ты строишь другие планы.",
+        answer: "Джон Леннон",
+        options: ["Джон Леннон", "Альберт Эйнштейн", "Стив Джобс", "Марк Твен"]
+      },
+      {
+        quote: "Единственный способ делать отличную работу — любить то, что делаешь.",
+        answer: "Стив Джобс",
+        options: ["Илон Маск", "Стив Джобс", "Билл Гейтс", "Марк Цукерберг"]
+      },
+      {
+        quote: "Будущее принадлежит тем, кто верит в красоту своей мечты.",
+        answer: "Элеонора Рузвельт",
+        options: ["Маргарет Тэтчер", "Элеонора Рузвельт", "Индира Ганди", "Ангела Меркель"]
+      },
+      {
+        quote: "Не бойтесь потерять тех, кто не побоялся потерять вас.",
+        answer: "Пауло Коэльо",
+        options: ["Пауло Коэльо", "Харуки Мураками", "Виктор Гюго", "Лев Толстой"]
+      }
+    ];
 
-        // Просмотр рекламы
-        adButton.addEventListener('click', () => {
-            if (!window.vkBridge) {
-                score += 100;
-                scoreEl.textContent = score;
-                return;
-            }
-            vkBridge.send("VKWebAppShowRewardedVideo", {})
-                .then(data => {
-                    if (data && data.result) {
-                        score += 100;
-                        scoreEl.textContent = score;
-                    }
-                })
-                .catch(() => {
-                    score += 100; // Начисляем тестовый бонус, если реклама заблокирована
-                    scoreEl.textContent = score;
-                });
-        });
+    let score = 0;
+    let currentQuestionIndex = -1;
 
-        // Таблица лидеров
-        leadButton.addEventListener('click', () => {
-            if (window.vkBridge) {
-                vkBridge.send("VKWebAppShowLeaderBoardBox", { "user_result": score }).catch(() => {});
-            }
-        });
+    function shuffle(array) {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
 
-        function saveScore() {
-            if (window.vkBridge) {
-                vkBridge.send("VKWebAppStorageSet", { "key": "coins_final", "value": score.toString() }).catch(e => {});
-            }
-        }
+    function startGame() {
+      nextRound();
+    }
 
-        function loadScore() {
-            if (window.vkBridge) {
-                vkBridge.send("VKWebAppStorageGet", { "keys": ["coins_final"] })
-                .then(data => {
-                    if (data && data.keys && data.keys[0] && data.keys[0].value) {
-                        score = parseInt(data.keys[0].value, 10) || 0;
-                        scoreEl.textContent = score;
-                    }
-                }).catch(e => {});
-            }
-        }
-    </script>
-</body>
-</html>
+    function nextRound() {
+      if (questions.length === 0) {
+        alert("Вопросы закончились!");
+        return;
+      }
+
+      const q = questions[Math.floor(Math.random() * questions.length)];
+      currentQuestionIndex = q; // сохраняем вопрос, чтобы проверить ответ
+
+      document.getElementById('quote-text').textContent = q.quote;
