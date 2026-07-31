@@ -161,24 +161,37 @@ function shuffleArray(array) {
   return arr;
 }
 
-// --- ИСПРАВЛЕННАЯ ТОЧКА ВХОДА ---
+// --- ПРАВИЛЬНАЯ ИНИЦИАЛИЗАЦИЯ ДЛЯ VK MINI APP ---
 (function init() {
-  // Проверяем, подключена ли библиотека VK Bridge вообще
-  if (typeof vkBridge !== 'undefined' && vkBridge.send) {
-    console.log('VK Bridge обнаружен, отправляем VKWebAppInit...');
-    
-    vkBridge.send('VKWebAppInit')
-      .then((data) => {
-        console.log('VK Bridge успешно инициализирован:', data);
-        renderStartScreen();
-      })
-      .catch((err) => {
-        console.error('Ошибка при вызове VKWebAppInit:', err);
-        // Показываем интерфейс в любом случае, чтобы приложение не висло на белом экране
-        renderStartScreen();
-      });
-  } else {
-    console.log('VK Bridge не найден. Запуск в режиме обычного браузера.');
-    renderStartScreen();
+  // vkBridge должен быть доступен глобально (подключается в index.html)
+  if (typeof vkBridge === 'undefined') {
+    console.warn('VK Bridge не найден. Запуск в режиме эмуляции (для тестов вне ВК).');
+    // Эмуляция только для тестов в браузере
+    window.vkBridge = {
+      load: () => Promise.resolve(),
+      send: (method, params) => {
+        console.log('[VK Bridge Emulation] send:', method, params);
+        if (method === 'VKWebAppClose') alert('Закрыть приложение (эмуляция)');
+      },
+      on: () => {},
+      ready: () => Promise.resolve()
+    };
   }
+
+  // ГЛАВНОЕ: сначала загружаем мост, потом отправляем инициализацию
+  vkBridge
+    .load()
+    .then(() => {
+      console.log('VK Bridge загружен. Отправляем VKWebAppInit...');
+      return vkBridge.send('VKWebAppInit');
+    })
+    .then(data => {
+      console.log('✅ VKWebAppInit успешно отправлен:', data);
+      renderStartScreen();
+    })
+    .catch(err => {
+      console.error('❌ Ошибка инициализации VK Bridge:', err);
+      // Даже при ошибке показываем интерфейс, чтобы не было белого экрана
+      renderStartScreen();
+    });
 })();
