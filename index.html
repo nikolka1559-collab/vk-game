@@ -8,28 +8,13 @@
     <!-- Стили VKUI -->
     <link rel="stylesheet" href="./vkui.css" />
 
-    <!-- VK Bridge: официальная CDN-ссылка (гарантированно правильная версия) -->
+    <!-- VK Bridge из CDN -->
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
 
     <style>
-      body {
-        margin: 0;
-        padding: 0;
-        font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
-      }
-      #root {
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-        box-sizing: border-box;
-      }
-      .status-text {
-        text-align: center;
-        line-height: 1.5;
-      }
+      body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; }
+      #root { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+      .status-text { text-align: center; line-height: 1.5; }
       .loading { color: #888; }
       .success { color: #0077FF; font-weight: bold; }
       .error { color: #FF4444; font-weight: bold; }
@@ -37,10 +22,8 @@
   </head>
   <body>
     <div id="root">
-      <p class="status-text loading">⏳ Инициализация VK Bridge…</p>
+      <p class="status-text loading">⏳ Ожидание ВКонтакте…</p>
     </div>
-
-    <!-- Твой код игры -->
     <script src="./game.js"></script>
   </body>
 </html>
