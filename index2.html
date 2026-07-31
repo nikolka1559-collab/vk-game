@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Тамагочи VK</title>
+    <!-- Подключаем VK Bridge для интеграции с ВКонтакте -->
+    <script src="https://unpkg.com"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Roboto', 'Helvetica Neue', sans-serif;
+            background-color: #ebedf0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .game-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+        }
+        h1 { font-size: 22px; color: #2c3e50; margin-bottom: 5px; }
+        .user-name { font-size: 14px; color: #818c99; margin-bottom: 20px; }
+        
+        /* --- СЦЕНА ПИТОМЦА И АНИМАЦИИ --- */
+        .pet-stage {
+            height: 140px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            background: linear-gradient(180deg, #f0f7ff 0%, #e1f0ff 100%);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+        .pet-avatar {
+            font-size: 70px;
+            user-select: none;
+            display: inline-block;
+            animation: idle 3s ease-in-out infinite; 
+            transform-origin: bottom center;
+            z-index: 2;
+        }
+        @keyframes idle {
+            0%, 100% { transform: scale(1) translateY(0); }
+            50% { transform: scale(1.05, 0.95) translateY(4px); }
+        }
+        .jump-animation {
+            animation: jump 0.5s ease-out !important;
+        }
+        @keyframes jump {
+            0%, 100% { transform: scale(1) translateY(0); }
+            30% { transform: scale(0.9, 1.1) translateY(-25px); }
+            70% { transform: scale(1.05, 0.95) translateY(5px); }
+        }
+
+        /* --- СТИЛИ ДЛЯ ЛЕТАЮЩИХ ЧАСТИЦ --- */
+        .particle {
+            position: absolute;
+            bottom: 20px;
+            font-size: 24px;
+            pointer-events: none;
+            z-index: 3;
+            animation: floatUp 1.2s ease-out forwards;
+        }
+        @keyframes floatUp {
+            0% {
+                transform: translateY(0) scale(0.5) rotate(0deg);
+                opacity: 0;
+            }
+            20% {
+                opacity: 1;
+                transform: translateY(-20px) scale(1.2);
+            }
+            100% {
+                transform: translateY(-100px) scale(0.8) rotate(var(--rot));
+                opacity: 0;
+            }
+        }
+
+        .stat-bar { margin-bottom: 15px; text-align: left; }
+        .stat-label { font-size: 14px; font-weight: 500; margin-bottom: 5px; display: block; }
+        .progress-bg { background: #f0f2f5; border-radius: 6px; height: 12px; overflow: hidden; }
+        .progress-fill { height: 100%; width: 50%; transition: width 0.3s, background-color 0.3s; }
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 25px; }
+        button {
+            background-color: #2d81e0;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        button:active { background-color: #2368b8; }
+        .danger { background-color: #e64646 !important; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <h1 id="pet-name">&#1055;&#1080;&#1090;&#1086;&#1084;&#1077;&#1094;</h1>
+    <div class="user-name" id="user-info">&#1047;&#1072;&#1075;&#1088;&#1091;&#1079;&#1082;&#1072; &#1076;&#1072;&#1085;&#1085;&#1099;&#1093; VK...</div>
+
+    <!-- Сцена с анимированным питомцем и контейнером частиц -->
+    <div class="pet-stage" id="pet-stage">
+        <div id="pet-avatar" class="pet-avatar">🐱</div>
+    </div>
+
+    <!-- Шкалы состояния -->
+    <div class="stat-bar">
+        <span class="stat-label">&#127830; &#1057;&#1099;&#1090;&#1086;&#1089;&#1090;&#1100;: <span id="val-hunger">50</span>%</span>
+        <div class="progress-bg"><div id="bar-hunger" class="progress-fill"></div></div>
+    </div>
+    <div class="stat-bar">
+        <span class="stat-label">&#127918; &#1056;&#1072;&#1076;&#1086;&#1089;&#1090;&#1100;: <span id="val-happy">50</span>%</span>
+        <div class="progress-bg"><div id="bar-happy" class="progress-fill"></div></div>
+    </div>
+    <div class="stat-bar">
+        <span class="stat-label">&#9889; &#12451;&#1085;&#1077;&#1088;&#1075;&#1080;&#1103;: <span id="val-energy">50</span>%</span>
+        <div class="progress-bg"><div id="bar-energy" class="progress-fill"></div></div>
+    </div>
+
+    <!-- Кнопки действий -->
+    <div class="btn-grid" id="controls">
+        <button onclick="action('eat')">&#1055;&#1086;&#1082;&#1086;&#1088;&#1084;&#1080;&#1090;&#1100;</button>
+        <button onclick="action('play')">&#1055;&#1086;&#1080;&#1075;&#1088;&#1072;&#1090;&#1100;</button>
+        <button onclick="action('sleep')">&#1059;&#1083;&#1086;&#1078;&#1080;&#1090;&#1100; &#1089;&#1087;&#1072;&#1090;&#1100;</button>
+        <button onclick="shareScore()" class="danger">&#1055;&#1086;&#1076;&#1077;&#1083;&#1080;&#1090;&#1100;&#1089;&#1103;</button>
+    </div>
+
+    <!-- Экран проигрыша -->
+    <div id="game-over" class="hidden">
+        <h2 style="color: #e64646;">&#1055;&#1080;&#1090;&#1086;&#1084;&#1077;&#1094; &#1087;&#1086;&#1075;&#1080;&#1073;...</h2>
+        <button onclick="restartGame()" style="width: 100%;">&#1053;&#1072;&#1095;&#1072;&#1090;&#1100; &#1079;&#1072;&#1085;&#1086;&#1074;&#1086;</button>
+    </div>
+</div>
+
+<script>
+    let pet = { hunger: 50, happy: 50, energy: 50, isAlive: true, name: "Tamagotchi" };
+    let gameInterval;
+
+    // Инициализация VK Bridge
+    vkBridge.send("VKWebAppInit", {});
+
+    vkBridge.send("VKWebAppGetUserInfo")
+        .then(data => {
+            if (data.first_name) {
+                document.getElementById('user-info').innerText = 'Owner: ' + data.first_name + ' ' + data.last_name;
+                pet.name = 'Pet ' + data.first_name;
+                document.getElementById('pet-name').innerText = pet.name;
+            }
+        })
+        .catch(() => {
+            document.getElementById('user-info').innerText = "Local Game Mode";
+        });
+
+    // Генерация летающих частиц
+    function spawnParticles(emoji) {
+        const stage = document.getElementById('pet-stage');
+        
+        for (let i = 0; i < 4; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            p.innerText = emoji;
+            
+            const randomX = Math.floor(Math.random() * 80) - 40; 
+            p.style.left = 'calc(50% + ' + randomX + 'px - 12px)';
+            
+            const randomRot = Math.floor(Math.random() * 60) - 30;
+            p.style.setProperty('--rot', randomRot + 'deg');
+            
+            p.style.animationDelay = (i * 0.15) + 's';
+            
+            stage.appendChild(p);
+            
+            setTimeout(() => p.remove(), 1500);
+        }
+    }
+
+    function updatePetVisual() {
+        const avatarEl = document.getElementById('pet-avatar');
+        if (!pet.isAlive) {
+            avatarEl.innerText = "👻";
+            return;
+        }
+        const minStat = Math.min(pet.hunger, pet.happy, pet.energy);
+        if (minStat <= 20) {
+            avatarEl.innerText = "😭";
+        } else if (minStat <= 45) {
+            avatarEl.innerText = "🥺";
+        } else if (pet.energy > 80 && pet.happy > 80) {
+            avatarEl.innerText = "👑";
+        } else {
+            avatarEl.innerText = "🐱";
+        }
+    }
+
+    function triggerActionAnimation() {
+        const avatarEl = document.getElementById('pet-avatar');
+        avatarEl.classList.remove('jump-animation');
+        void avatarEl.offsetWidth; 
+        avatarEl.classList.add('jump-animation');
+    }
+
+    function updateUI() {
+        const stats = ['hunger', 'happy', 'energy'];
+        stats.forEach(stat => {
+            document.getElementById('val-' + stat).innerText = pet[stat];
+            const bar = document.getElementById('bar-' + stat);
+            bar.style.width = pet[stat] + '%';
+            
+            if (pet[stat] > 50) bar.style.backgroundColor = '#4bb34b';
+            else if (pet[stat] > 20) bar.style.backgroundColor = '#ffa000';
+            else bar.style.backgroundColor = '#e64646';
+        });
+
+        updatePetVisual();
+
+        if (!pet.isAlive) {
+            clearInterval(gameInterval);
+            document.getElementById('controls').classList.add('hidden');
+            document.getElementById('game-over').classList.remove('hidden');
+            vkBridge.send("VKWebAppTapticNotificationOccurred", {"type": "error"});
+        }
+    }
+
+    function gameTick() {
+        pet.hunger = Math.max(0, pet.hunger - Math.floor(Math.random() * 3 + 2));
+        pet.happy = Math.max(0, pet.happy - Math.floor(Math.random() * 3 + 2));
+        pet.energy = Math.max(0, pet.energy - Math.floor(Math.random() * 2 + 1));
+
+        if (pet.hunger === 0 || pet.happy === 0 || pet.energy === 0) {
+            pet.isAlive = false;
+        }
+        updateUI();
+    }
+
+    function action(type) {
+        if (!pet.isAlive) return;
+        
+        vkBridge.send("VKWebAppTapticImpactOccurred", {"style": "light"});
+        triggerActionAnimation();
+
+        if (type === 'eat') {
+            pet.hunger = Math.min(100, pet.hunger + 20);
+            pet.energy = Math.max(0, pet.energy - 5);
+spawnParticles("🍗");} else if (type === 'play') {pet.happy = Math.min(100, pet.happy + 25);pet.hunger = Math.max(0, pet.hunger - 10);pet.energy = Math.max(0, pet.energy - 15);spawnParticles("❤️");} else if (type === 'sleep') {pet.energy = Math.min(100, pet.energy + 30);pet.hunger = Math.max(0, pet.hunger - 10);spawnParticles("💤");}updateUI();}function shareScore() {vkBridge.send("VKWebAppShare", {"link": "vk.com" + getAppId()});}function restartGame() {pet = { hunger: 50, happy: 50, energy: 50, isAlive: true, name: pet.name };document.getElementById('controls').classList.remove('hidden');document.getElementById('game-over').classList.add('hidden');startGame();}function startGame() {updateUI();gameInterval = setInterval(gameTick, 2000);}function getAppId() {const urlParams = new URLSearchParams(window.location.search);return urlParams.get('vk_app_id') || '0000000';}startGame();
