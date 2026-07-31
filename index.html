@@ -1,5 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Генератор статусов с Лидербордом</title>
+    <!-- VK Bridge -->
+    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+
+    <style>
+        :root {
+            --vk-background: #ebedf0;
+            --vk-button: #2d81e0;
+            --vk-text: #000000;
+            --vk-panel: #ffffff;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+            margin: 0; padding: 0;
+            background-color: var(--vk-background);
+            color: var(--vk-text);
+            display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh; box-sizing: border-box;
+        }
+        .container { width: 100%; max-width: 400px; padding: 20px; text-align: center; box-sizing: border-box; }
+        .stats-panel {
+            background: var(--vk-panel); border-radius: 12px; padding: 12px 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            font-size: 14px; font-weight: 600;
+        }
+        .exp-badge { color: #4bb34b; }
+        .user-name { color: var(--vk-button); }
+        .leaderboard {
+            background: var(--vk-panel); border-radius: 12px; padding: 15px;
+            margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); text-align: left;
+        }
+        .leaderboard h3 { margin-top: 0; margin-bottom: 10px; font-size: 16px; text-align: center; }
+        .leader-item {
+            display: flex; justify-content: space-between; padding: 8px 0;
+            border-bottom: 1px solid rgba(0,0,0,0.05); font-size: 14px;
+        }
+        .leader-item:last-child { border-bottom: none; }
+        .place { font-weight: bold; margin-right: 8px; }
+        .select-box {
+            width: 100%; padding: 12px; font-size: 16px; border-radius: 10px;
+            border: 1px solid #ced4da; margin-bottom: 15px; background: #fff;
+        }
+        .card {
+            background: var(--vk-panel); border-radius: 16px; padding: 25px 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); min-height: 100px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 17px; font-weight: 500; line-height: 1.4;
+            margin-bottom: 20px; border: 1px solid rgba(0,0,0,0.08);
+        }
+        .btn {
+            display: block; width: 100%; padding: 14px; font-size: 16px;
+            font-weight: 600; border: none; border-radius: 10px;
+            cursor: pointer; margin-bottom: 10px; transition: opacity 0.2s;
+        }
+        .btn:active { opacity: 0.8; }
+        .btn-primary { background-color: var(--vk-button); color: #fff; }
+        .btn-secondary { background-color: rgba(0,0,0,0.05); color: var(--vk-button); }
+        .btn-success { background-color: #4bb34b; color: #fff; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="stats-panel">
+        <span class="user-name" id="userName">Загрузка профиля...</span>
+        <span>Ур: <span id="userLevel" class="exp-badge">1</span></span>
+        <span>Опыт: <span id="userExp" class="exp-badge">0</span> XP</span>
+    </div>
+
+    <div class="leaderboard">
+        <h3>🏆 Топ Лидеров Сообщества</h3>
+        <div id="leaderboardList">
+            <div style="text-align:center; color:gray; font-size:13px;">Синхронизация с ВК...</div>
+        </div>
+    </div>
+    
+    <select id="categorySelect" class="select-box">
+        <option value="work">💼 Про работу</option>
+        <option value="life">🛋️ Про жизнь</option>
+        <option value="philosophy">🦉 Мысли великих</option>
+    </select>
+
+    <div class="card" id="statusCard">Подпишитесь на группу и создайте статус, чтобы попасть в ТОП!</div>
+
+    <button class="btn btn-success" id="bonusBtn" onclick="claimDailyBonus()">🎁 Ежедневный бонус (+30 XP)</button>
+    <button class="btn btn-primary" onclick="generateStatus()">🎲 Сгенерировать статус</button>
+    <button class="btn btn-secondary" onclick="setStatusVK()">✨ Установить в статус ВК</button>
+    <button class="btn btn-secondary" onclick="shareToStory()">📸 Поделиться в Истории</button>
+</div>
+
 <script>
-    // НАСТРОЙКА: Укажите здесь ID вашей группы ВКонтакте (только цифры)
     const GROUP_ID = 54697683; 
 
     const db = {
@@ -24,11 +119,9 @@
     let isSubscribed = false;
     let myVkName = "Вы";
 
-    // Данные пользователя из локальной памяти
     let userExp = parseInt(localStorage.getItem('status_app_global_exp')) || 0;
     let userLevel = parseInt(localStorage.getItem('status_app_level')) || 1;
 
-    // Безопасный запуск VK Bridge
     function initApp() {
         if (typeof vkBridge !== 'undefined') {
             vkBridge.send("VKWebAppInit")
@@ -39,25 +132,21 @@
                     loadLeaderboard();
                 })
                 .catch(err => {
-                    console.error("Ошибка инициализации Bridge внутри ВК:", err);
+                    console.error("Ошибка инициализации Bridge:", err);
                     fallbackInit();
                 });
         } else {
-            console.warn("Скрипт vkBridge не обнаружен (запуск вне ВКонтакте)");
+            console.warn("VK Bridge не найден (запуск вне ВК)");
             fallbackInit();
         }
     }
 
-    initApp();
-
-    // Резервный режим, если ВК недоступен
     function fallbackInit() {
         document.getElementById("userName").innerText = "Тестовый Игрок";
         document.getElementById("leaderboardList").innerHTML = '<div style="text-align:center; color:orange; font-size:12px;">Запущено вне ВК (демо-режим)</div>';
         updateStatsUI();
     }
 
-    // Получаем имя пользователя из ВК
     function getUserVkData() {
         vkBridge.send("VKWebAppGetUserInfo")
             .then(data => {
@@ -73,11 +162,10 @@
             });
     }
 
-    // Проверка подписки
     function checkGroupSubscription() {
         vkBridge.send("VKWebAppGetGroupToken", { "group_id": GROUP_ID, "scope": "groups" })
             .then(() => { isSubscribed = true; })
-            .catch(() => { console.log("Всплывающее окно подписки активируется при клике"); });
+            .catch(() => {});
     }
 
     async function requestSubscription() {
@@ -92,8 +180,10 @@
     }
 
     function updateStatsUI() {
-        document.getElementById("userExp").innerText = userExp;
-        document.getElementById("userLevel").innerText = userLevel;
+        const elLevel = document.getElementById("userLevel");
+        const elExp = document.getElementById("userExp");
+        if (elLevel) elLevel.innerText = userLevel;
+        if (elExp) elExp.innerText = userExp;
     }
 
     function addExperience(amount) {
@@ -118,10 +208,10 @@
         }
         localStorage.setItem('status_app_bonus_time', now);
         addExperience(30);
-        document.getElementById("bonusBtn").style.display = "none";
+        const btn = document.getElementById("bonusBtn");
+        if (btn) btn.style.display = "none";
     }
 
-    // Сохранение в Лидерборд
     function saveMyScore() {
         const totalScore = (userLevel * 100) + userExp;
         
@@ -132,7 +222,6 @@
                     list = JSON.parse(data.keys[0].value);
                 }
                 
-                // Удаляем старую запись пользователя по имени
                 list = list.filter(item => item.name !== myVkName);
                 list.push({ name: myVkName, score: totalScore });
                 list.sort((a, b) => b.score - a.score);
@@ -148,11 +237,11 @@
             .catch(err => console.error("Не удалось получить лидерборд для сохранения", err));
     }
 
-    // Загрузка Лидерборда
     function loadLeaderboard() {
         vkBridge.send("VKWebAppStorageGet", {"keys": ["global_leaderboard"]})
             .then(data => {
                 const container = document.getElementById("leaderboardList");
+                if (!container) return;
                 container.innerHTML = "";
                 let list = [];
                 if(data.keys && data.keys[0] && data.keys[0].value) {
@@ -169,59 +258,4 @@
                     const item = document.createElement("div");
                     item.className = "leader-item";
                     const place = medals[index] || "👤";
-                    item.innerHTML = `<div><span class="place">${place}</span> ${player.name}</div>
-                                      <div class="exp-badge">${player.score} XP</div>`;
-                    container.appendChild(item);
-                });
-            })
-            .catch(() => {
-                document.getElementById("leaderboardList").innerHTML = 'Не удалось загрузить топ.';
-            });
-    }
-
-    async function generateStatus() {
-        if (typeof vkBridge !== 'undefined' && !isSubscribed) {
-            const sub = await requestSubscription();
-            if (!sub) return;
-        }
-
-        const category = document.getElementById("categorySelect").value;
-        const statuses = db[category];
-        currentStatus = statuses[Math.floor(Math.random() * statuses.length)];
-        document.getElementById("statusCard").innerText = currentStatus;
-        addExperience(5);
-    }
-
-    function setStatusVK() {
-        if (!currentStatus) return alert("Сначала сгенерируйте статус!");
-        if (typeof vkBridge === 'undefined') return alert("Изменение статуса доступно только внутри приложения ВК!");
-
-        vkBridge.send("VKWebAppSetLocation", {"location": currentStatus})
-            .then(() => { 
-                alert("Статус обновлен!"); 
-                addExperience(15); 
-            })
-            .catch(() => alert("Ошибка изменения статуса."));
-    }
-
-    function shareToStory() {
-        if (!currentStatus) return alert("Сначала сгенерируйте статус!");
-        if (typeof vkBridge === 'undefined') return alert("Публикация историй доступна только внутри ВК!");
-
-        vkBridge.send("VKWebAppShowStoryBox", {
-            "background_type": "gradient", 
-            "gradient_color": "blue",
-            "stickers": [
-                {
-                    "type": "text", 
-                    "text": currentStatus, 
-                    "style": "transparent_background", 
-                    "alignment": "center", 
-                    "font_size": 24
-                }
-            ]
-        })
-        .then(() => addExperience(20))
-        .catch(err => console.error(err));
-    }
-</script>
+                    item.innerHTML = `<div
