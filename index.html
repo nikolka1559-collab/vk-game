@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Битва цитат</title>
+    <title>Генератор статусов с Лидербордом</title>
 
-    <!-- VK Bridge (обязательно) -->
+    <!-- ПРАВИЛЬНАЯ ПОДКЛЮЧКА VK BRIDGE -->
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
 
     <style>
@@ -32,6 +32,7 @@
             min-height: 100vh; box-sizing: border-box;
         }
         .container { width: 100%; max-width: 400px; padding: 20px; text-align: center; box-sizing: border-box; }
+        
         .stats-panel {
             background: var(--vk-panel); border-radius: 12px; padding: 12px 15px;
             display: flex; justify-content: space-between; align-items: center;
@@ -40,6 +41,7 @@
         }
         .exp-badge { color: #4bb34b; }
         .user-name { color: var(--vk-button); }
+
         .leaderboard {
             background: var(--vk-panel); border-radius: 12px; padding: 15px;
             margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); text-align: left;
@@ -49,7 +51,9 @@
             display: flex; justify-content: space-between; padding: 8px 0;
             border-bottom: 1px solid rgba(0,0,0,0.05); font-size: 14px;
         }
+        .leader-item:last-child { border-bottom: none; }
         .place { font-weight: bold; margin-right: 8px; }
+
         .select-box {
             width: 100%; padding: 12px; font-size: 16px; border-radius: 10px;
             border: 1px solid #ced4da; margin-bottom: 15px; background: #fff;
@@ -82,7 +86,7 @@
     </div>
 
     <div class="leaderboard">
-        <h3>🏆 Топ Лидеров</h3>
+        <h3>🏆 Топ Лидеров Сообщества</h3>
         <div id="leaderboardList">
             <div style="text-align:center; color:gray; font-size:13px;">Синхронизация с ВК...</div>
         </div>
@@ -91,13 +95,10 @@
     <select id="categorySelect" class="select-box">
         <option value="work">💼 Про работу</option>
         <option value="life">🛋️ Про жизнь</option>
-        <option value="philosophy">🦉 Философия</option>
-        <option value="games">🎮 Игры</option>
-        <option value="tech">💻 Технологии</option>
-        <option value="fun">😄 Юмор</option>
+        <option value="philosophy">🦉 Мысли великих</option>
     </select>
 
-    <div class="card" id="statusCard">Нажмите «Сгенерировать статус», чтобы получить цитату!</div>
+    <div class="card" id="statusCard">Подпишитесь на группу и создайте статус, чтобы попасть в ТОП!</div>
 
     <button class="btn btn-success" id="bonusBtn" onclick="claimDailyBonus()">🎁 Ежедневный бонус (+30 XP)</button>
     <button class="btn btn-primary" onclick="generateStatus()">🎲 Сгенерировать статус</button>
@@ -105,7 +106,244 @@
     <button class="btn btn-secondary" onclick="shareToStory()">📸 Поделиться в Истории</button>
 </div>
 
-<!-- Сюда вставим JS из Части 2 -->
-<script src="./game.js"></script>
+<script>
+    // НАСТРОЙКА: Вставь сюда ID своей группы ВКонтакте (только цифры)
+    const GROUP_ID = 55797203; 
+
+    const db = {
+        work: [
+            "Работа не волк, работа — это я, и я хочу спать. 💻",
+            "Мой рабочий день: до обеда хочется есть, после обеда — спать. 🥪",
+            "Удаленная работа — это когда ты работаешь там же, где спишь. 🛋️"
+        ],
+        life: [
+            "В активном поиске... пульта от телевизора. 📺",
+            "Мои планы на день: Срочно отменить взрослую жизнь. 🦥",
+            "Ем, сплю и жду, когда наступит пятница. 😁"
+        ],
+        philosophy: [
+            "Мудрость приходит с возрастом, но иногда возраст приходит один. 🦉",
+            "Я не ленивый, я в энергосберегающем режиме. 🔋",
+            "Всё идёт хорошо, но мимо. 🌌"
+        ]
+    };
+
+    let currentStatus = "";
+    let isSubscribed = false;
+    let myVkName = "Вы";
+
+    let userExp = parseInt(localStorage.getItem('status_app_global_exp')) || 0;
+    let userLevel = parseInt(localStorage.getItem('status_app_level')) || 1;
+
+    function safeGet(id) {
+        const el = document.getElementById(id);
+        if (!el) console.warn('Элемент #' + id + ' не найден');
+        return el;
+    }
+
+    // Инициализация
+    if (typeof vkBridge !== 'undefined') {
+        vkBridge.send("VKWebAppInit")
+            .then(() => {
+                console.log("VK Bridge готов");
+                getUserVkData();
+                checkGroupSubscription();
+                loadLeaderboard();
+            })
+            .catch(err => {
+                console.error("Ошибка VK Bridge:", err);
+                fallbackInit();
+            });
+    } else {
+        console.warn("VK Bridge не найден (запуск вне ВК)");
+        setTimeout(fallbackInit, 500);
+    }
+
+    function fallbackInit() {
+        const userNameEl = safeGet("userName");
+        const leaderboardEl = safeGet("leaderboardList");
+        if (userNameEl) userNameEl.innerText = "Тестовый Игрок";
+        if (leaderboardEl) leaderboardEl.innerHTML = '<div style="text-align:center;color:orange;font-size:12px;">Демо-режим (не в ВК)</div>';
+        updateStatsUI();
+    }
+
+    function getUserVkData() {
+        vkBridge.send("VKWebAppGetUserInfo")
+            .then(data => {
+                if (data.first_name) {
+                    myVkName = `${data.first_name} ${data.last_name || ''}`.trim();
+                    const el = safeGet("userName");
+                    if (el) el.innerText = data.first_name;
+                    updateStatsUI();
+                    saveMyScore(); 
+                }
+            })
+            .catch(() => {
+                const el = safeGet("userName");
+                if (el) el.innerText = "Игрок";
+            });
+    }
+
+    function checkGroupSubscription() {
+        vkBridge.send("VKWebAppGetGroupToken", { "group_id": GROUP_ID, "scope": "groups" })
+            .then(() => { isSubscribed = true; })
+            .catch(() => {});
+    }
+
+    async function requestSubscription() {
+        try {
+            await vkBridge.send("VKWebAppJoinGroup", {"group_id": GROUP_ID});
+            isSubscribed = true;
+            return true;
+        } catch (e) {
+            alert("Для генерации нужно подписаться на группу!");
+            return false;
+        }
+    }
+
+    function updateStatsUI() {
+        const expEl = safeGet("userExp");
+        const lvlEl = safeGet("userLevel");
+        if (expEl) expEl.innerText = userExp;
+        if (lvlEl) lvlEl.innerText = userLevel;
+    }
+
+    function addExperience(amount) {
+        userExp += amount;
+        if (userExp >= 100) {
+            userLevel += 1;
+            userExp -= 100;
+            alert(`🎉 Новый уровень! Вы достигли ${userLevel} уровня!`);
+        }
+        localStorage.setItem('status_app_global_exp', userExp);
+        localStorage.setItem('status_app_level', userLevel);
+        updateStatsUI();
+        if (typeof vkBridge !== 'undefined') saveMyScore();
+    }
+
+    function claimDailyBonus() {
+        const lastBonus = localStorage.getItem('status_app_bonus_time');
+        const now = Date.now();
+        if (lastBonus && (now - lastBonus < 86400000)) {
+            alert("Бонус уже получен! Возвращайтесь завтра.");
+            return;
+        }
+        localStorage.setItem('status_app_bonus_time', now);
+        addExperience(30);
+        const btn = safeGet("bonusBtn");
+        if (btn) btn.style.display = "none";
+    }
+
+    function saveMyScore() {
+        const totalScore = (userLevel * 100) + userExp;
+        
+        vkBridge.send("VKWebAppStorageGet", {"keys": ["global_leaderboard"]})
+            .then(data => {
+                let list = [];
+                if(data.keys && data.keys[0] && data.keys[0].value) {
+                    try {
+                        list = JSON.parse(data.keys[0].value);
+                    } catch (e) {
+                        console.error(e);
+                        list = [];
+                    }
+                }
+                
+                list = list.filter(item => item.name !== myVkName);
+                list.push({ name: myVkName, score: totalScore });
+                list.sort((a, b) => b.score - a.score);
+                list = list.slice(0, 5);
+                
+                vkBridge.send("VKWebAppStorageSet", {
+                    "key": "global_leaderboard",
+                    "value": JSON.stringify(list)
+                })
+                .then(() => loadLeaderboard())
+                .catch(err => console.error(err));
+            })
+            .catch(err => console.error(err));
+    }
+
+    function loadLeaderboard() {
+        const container = safeGet("leaderboardList");
+        if (!container) return;
+
+        vkBridge.send("VKWebAppStorageGet", {"keys": ["global_leaderboard"]})
+            .then(data => {
+                container.innerHTML = "";
+                let list = [];
+                if(data.keys && data.keys[0] && data.keys[0].value) {
+                    try {
+                        list = JSON.parse(data.keys[0].value);
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
+
+                if (list.length === 0) {
+                    container.innerHTML = 'Вы будете первым в списке!';
+                    return;
+                }
+
+                const medals = ["🥇", "🥈", "🥉", "👤", "👤"];
+                list.forEach((player, index) => {
+                    const item = document.createElement("div");
+                    item.className = "leader-item";
+                    item.innerHTML = `<div><span class="place">${medals[index] || "👤"}</span> ${player.name}</div> <div class="exp-badge">${player.score} XP</div>`;
+                    container.appendChild(item);
+                });
+            })
+            .catch(() => {
+                container.innerHTML = 'Не удалось загрузить топ.';
+            });
+    }
+
+    async function generateStatus() {
+        if (typeof vkBridge !== 'undefined' && !isSubscribed) {
+            const sub = await requestSubscription();
+            if (!sub) return;
+        }
+
+        const category = document.getElementById("categorySelect").value;
+        const statuses = db[category];
+        currentStatus = statuses[Math.floor(Math.random() * statuses.length)];
+        const card = safeGet("statusCard");
+        if (card) card.innerText = currentStatus;
+        addExperience(5);
+    }
+
+    function setStatusVK() {
+        if (!currentStatus) return alert("Сначала сгенерируйте статус!");
+        if (typeof vkBridge === 'undefined') return alert("Доступно только внутри ВК!");
+
+        vkBridge.send("VKWebAppSetLocation", {"location": currentStatus})
+            .then(() => { 
+                alert("Статус обновлен!"); 
+                addExperience(15); 
+            })
+            .catch(() => alert("Ошибка изменения статуса."));
+    }
+
+    function shareToStory() {
+        if (!currentStatus) return alert("Сначала сгенерируйте статус!");
+        if (typeof vkBridge === 'undefined') return alert("Доступно только внутри ВК!");
+
+        vkBridge.send("VKWebAppShowStoryBox", {
+            "background_type": "gradient",
+            "gradient_color": "blue",
+            "stickers": [
+                {
+                    "type": "text",
+                    "text": currentStatus,
+                    "style": "transparent_background",
+                    "alignment": "center",
+                    "font_size": 24
+                }
+            ]
+        })
+        .then(() => addExperience(20))
+        .catch(err => console.error(err));
+    }
+</script>
 </body>
 </html>
