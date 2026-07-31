@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Генератор статусов с Лидербордом</title>
+    <title>Генератор статусов</title>
     <!-- VK Bridge -->
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
 
@@ -40,7 +40,6 @@
             display: flex; justify-content: space-between; padding: 8px 0;
             border-bottom: 1px solid rgba(0,0,0,0.05); font-size: 14px;
         }
-        .leader-item:last-child { border-bottom: none; }
         .place { font-weight: bold; margin-right: 8px; }
         .select-box {
             width: 100%; padding: 12px; font-size: 16px; border-radius: 10px;
@@ -67,14 +66,12 @@
 <body>
 
 <div class="container">
-    <!-- Панель статистики -->
     <div class="stats-panel">
         <span class="user-name" id="userName">Загрузка профиля...</span>
         <span>Ур: <span id="userLevel" class="exp-badge">1</span></span>
         <span>Опыт: <span id="userExp" class="exp-badge">0</span> XP</span>
     </div>
 
-    <!-- Лидерборд -->
     <div class="leaderboard">
         <h3>🏆 Топ Лидеров Сообщества</h3>
         <div id="leaderboardList">
@@ -82,17 +79,14 @@
         </div>
     </div>
     
-    <!-- Выбор категории -->
     <select id="categorySelect" class="select-box">
         <option value="work">💼 Про работу</option>
         <option value="life">🛋️ Про жизнь</option>
         <option value="philosophy">🦉 Мысли великих</option>
     </select>
 
-    <!-- Карточка статуса -->
     <div class="card" id="statusCard">Подпишитесь на группу и создайте статус, чтобы попасть в ТОП!</div>
 
-    <!-- Кнопки -->
     <button class="btn btn-success" id="bonusBtn" onclick="claimDailyBonus()">🎁 Ежедневный бонус (+30 XP)</button>
     <button class="btn btn-primary" onclick="generateStatus()">🎲 Сгенерировать статус</button>
     <button class="btn btn-secondary" onclick="setStatusVK()">✨ Установить в статус ВК</button>
@@ -336,4 +330,19 @@
                 {
                     "type": "text", 
                     "text": currentStatus, 
-                    "style": "transparent_background",
+                    "style": "transparent_background", 
+                    "alignment": "center", 
+                    "font_size": 24
+                }
+            ]
+        })
+        .then(() => addExperience(20))
+        .catch(err => console.error(err));
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initApp();
+    });
+</script>
+</body>
+</html>
