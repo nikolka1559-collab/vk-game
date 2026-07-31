@@ -3,27 +3,164 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <title>Битва цитат</title>
-
-    <!-- Стили VKUI -->
-    <link rel="stylesheet" href="./vkui.css" />
-
-    <!-- VK Bridge из CDN -->
-    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
-
+    <title>Угадай цитату</title>
     <style>
-      body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; }
-      #root { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
-      .status-text { text-align: center; line-height: 1.5; }
-      .loading { color: #888; }
-      .success { color: #0077FF; font-weight: bold; }
-      .error { color: #FF4444; font-weight: bold; }
+      :root {
+        --vk-blue: #0077FF;
+        --bg: #f4f6f9;
+        --card: #ffffff;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--bg);
+        font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+        color: #2b2b2b;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .container {
+        width: 100%;
+        max-width: 500px;
+        padding: 16px;
+        box-sizing: border-box;
+      }
+      .card {
+        background: var(--card);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        text-align: center;
+      }
+      h1 { margin: 0 0 8px; font-size: 22px; }
+      .quote-text {
+        font-size: 18px;
+        line-height: 1.4;
+        margin-bottom: 24px;
+        color: #333;
+      }
+      .options button {
+        display: block;
+        width: 100%;
+        padding: 14px;
+        margin-bottom: 8px;
+        border: none;
+        border-radius: 8px;
+        background: #eef2f5;
+        color: #2b2b2b;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .options button:active { background: #e0e5eb; }
+      .score-row {
+        margin-top: 16px;
+        font-size: 15px;
+        color: #666;
+      }
+      .hidden { display: none; }
+      .success-msg { color: #0f9d58; font-weight: bold; }
+      .error-msg { color: #d93025; font-weight: bold; }
     </style>
   </head>
   <body>
-    <div id="root">
-      <p class="status-text loading">⏳ Ожидание ВКонтакте…</p>
+    <div class="container">
+      <div class="card">
+        <h1>Угадай цитату</h1>
+        <p class="quote-text" id="quote">Загрузка...</p>
+        <div class="options" id="options"></div>
+        <div class="score-row">
+          Счёт: <span id="score">0</span> / <span id="total">0</span>
+        </div>
+      </div>
     </div>
-    <script src="./game.js"></script>
+
+    <!-- VK Bridge -->
+    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+    <script>
+      // База цитат: [цитата, правильный ответ, остальные варианты]
+      const quotes = [
+        ["«Быть или не быть — вот в чём вопрос»", "Гамлет", "Отелло", "Ромео", "Макбет"],
+        ["«Все счастливые семьи похожи друг на друга…»", "Анна Каренина", "Война и мир", "Братья Карамазовы", "Идиот"],
+        ["«Человек — это звучит гордо!»", "На дне", "Вишнёвый сад", "Три сестры", "Чайка"],
+        ["«Я помню чудное мгновенье…»", "Пушкин", "Лермонтов", "Тютчев", "Фет"],
+        ["«Тварь я дрожащая или право имею?»", "Преступление и наказание", "Идиот", "Бесы", "Подросток"]
+      ];
+
+      let currentIndex = 0;
+      let score = 0;
+
+      function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+      }
+
+      function nextQuestion() {
+        if (currentIndex >= quotes.length) {
+          document.getElementById('quote').innerText = "🎉 Игра окончена! Спасибо за участие.";
+          document.getElementById('options').className = 'hidden';
+          return;
+        }
+
+        const q = quotes[currentIndex];
+        document.getElementById('quote').innerText = q[0];
+
+        // Перемешиваем варианты ответов
+        const options = shuffle([q[1], q[2], q[3], q[4]]);
+        const container = document.getElementById('options');
+        container.innerHTML = '';
+
+        options.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.innerText = opt;
+          btn.onclick = () => checkAnswer(opt, q[1]);
+          container.appendChild(btn);
+        });
+
+        currentIndex++;
+        updateScore();
+      }
+
+      function checkAnswer(selected, correct) {
+        const btn = event.target;
+        if (selected === correct) {
+          score++;
+          btn.style.backgroundColor = '#e6f3e6';
+          btn.innerText += " ✅";
+        } else {
+          btn.style.backgroundColor = '#f8e6e6';
+          btn.innerText += " ❌";
+          // Можно подсветить правильный ответ, если хочется
+        }
+        setTimeout(nextQuestion, 1000);
+      }
+
+      function updateScore() {
+        document.getElementById('score').innerText = score;
+        document.getElementById('total').innerText = currentIndex;
+      }
+
+      // Инициализация VK
+      if (window.VKBridge) {
+        VKBridge.send('VKWebAppInit')
+          .then(() => {
+            nextQuestion();
+          })
+          .catch(err => {
+            console.error('VK init error', err);
+            document.getElementById('quote').innerText = 'Ошибка инициализации ВКонтакте';
+            document.getElementById('options').className = 'hidden';
+          });
+      } else {
+        console.error('VKBridge not found');
+        document.getElementById('quote').innerText = 'VK Bridge не найден';
+        document.getElementById('options').className = 'hidden';
+      }
+    </script>
   </body>
 </html>
