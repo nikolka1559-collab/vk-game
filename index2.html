@@ -150,6 +150,7 @@
 <script>
     let pet = { hunger: 50, happy: 50, energy: 50, isAlive: true, name: "Tamagotchi" };
     let gameInterval;
+    let audioCtx = null;
 
     // Инициализация VK Bridge
     vkBridge.send("VKWebAppInit", {});
@@ -166,25 +167,83 @@
             document.getElementById('user-info').innerText = "Local Game Mode";
         });
 
+    // --- ЗВУКОВОЙ ДВИЖОК (Web Audio API) ---
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    function playSound(type) {
+        initAudio();
+        if (!audioCtx) return;
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        const now = audioCtx.currentTime;
+
+        if (type === 'eat') {
+            // Звук хруста / жевания
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.exponentialRampToValueAtTime(400, now + 0.15);
+            gain.gain.setValueAtTime(0.3, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.15);
+            osc.start(now);
+            osc.stop(now + 0.15);
+        } else if (type === 'play') {
+            // Веселый двойной писк
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(400, now);
+            osc.frequency.setValueAtTime(600, now + 0.1);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.2);
+            osc.start(now);
+            osc.stop(now + 0.2);
+        } else if (type === 'sleep') {
+            // Плавный затихающий звук колыбельной
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(300, now);
+            osc.frequency.exponentialRampToValueAtTime(150, now + 0.4);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.4);
+            osc.start(now);
+            osc.stop(now + 0.4);
+        }
+    }
+
+    // --- СИСТЕМА СОХРАНЕНИЙ ---
+    function saveGame() {
+        localStorage.setItem('vk_tamagotchi_save', JSON.stringify(pet));
+    }
+
+    function loadGame() {
+        const savedData = localStorage.getItem('vk_tamagotchi_save');
+        if (savedData) {
+            const parsed = JSON.parse(savedData);
+            // Загружаем только если питомец оставался жив
+            if (parsed && parsed.isAlive) {
+                pet = parsed;
+            }
+        }
+    }
+
     // Генерация летающих частиц
     function spawnParticles(emoji) {
         const stage = document.getElementById('pet-stage');
-        
         for (let i = 0; i < 4; i++) {
             const p = document.createElement('div');
             p.className = 'particle';
             p.innerText = emoji;
-            
             const randomX = Math.floor(Math.random() * 80) - 40; 
             p.style.left = 'calc(50% + ' + randomX + 'px - 12px)';
-            
             const randomRot = Math.floor(Math.random() * 60) - 30;
             p.style.setProperty('--rot', randomRot + 'deg');
-            
             p.style.animationDelay = (i * 0.15) + 's';
-            
             stage.appendChild(p);
-            
             setTimeout(() => p.remove(), 1500);
         }
     }
@@ -197,63 +256,124 @@
         }
         const minStat = Math.min(pet.hunger, pet.happy, pet.energy);
         if (minStat <= 20) {
-            avatarEl.innerText = "😭";
-        } else if (minStat <= 45) {
-            avatarEl.innerText = "🥺";
-        } else if (pet.energy > 80 && pet.happy > 80) {
-            avatarEl.innerText = "👑";
-        } else {
-            avatarEl.innerText = "🐱";
-        }
+function updatePetVisual() {
+    // Вычисление минимального показателя (предполагаемый логический контекст)
+    const minStat = Math.min(pet.hunger, pet.happy, pet.energy);
+    const avatarEl = document.getElementById('pet-avatar');
+
+    if (minStat <= 15) {
+        avatarEl.innerText = "😭";
+    } else if (minStat <= 45) {
+        avatarEl.innerText = "🥺";
+    } else if (pet.energy > 80 && pet.happy > 80) {
+        avatarEl.innerText = "👑";
+    } else {
+        avatarEl.innerText = "🐱";
     }
+}
 
-    function triggerActionAnimation() {
-        const avatarEl = document.getElementById('pet-avatar');
-        avatarEl.classList.remove('jump-animation');
-        void avatarEl.offsetWidth; 
-        avatarEl.classList.add('jump-animation');
-    }
+function triggerActionAnimation() {
+    const avatarEl = document.getElementById('pet-avatar');
+    avatarEl.classList.remove('jump-animation');
+    void avatarEl.offsetWidth;
+    avatarEl.classList.add('jump-animation');
+}
 
-    function updateUI() {
-        const stats = ['hunger', 'happy', 'energy'];
-        stats.forEach(stat => {
-            document.getElementById('val-' + stat).innerText = pet[stat];
-            const bar = document.getElementById('bar-' + stat);
-            bar.style.width = pet[stat] + '%';
-            
-            if (pet[stat] > 50) bar.style.backgroundColor = '#4bb34b';
-            else if (pet[stat] > 20) bar.style.backgroundColor = '#ffa000';
-            else bar.style.backgroundColor = '#e64646';
-        });
-
-        updatePetVisual();
-
-        if (!pet.isAlive) {
-            clearInterval(gameInterval);
-            document.getElementById('controls').classList.add('hidden');
-            document.getElementById('game-over').classList.remove('hidden');
-            vkBridge.send("VKWebAppTapticNotificationOccurred", {"type": "error"});
-        }
-    }
-
-    function gameTick() {
-        pet.hunger = Math.max(0, pet.hunger - Math.floor(Math.random() * 3 + 2));
-        pet.happy = Math.max(0, pet.happy - Math.floor(Math.random() * 3 + 2));
-        pet.energy = Math.max(0, pet.energy - Math.floor(Math.random() * 2 + 1));
-
-        if (pet.hunger === 0 || pet.happy === 0 || pet.energy === 0) {
-            pet.isAlive = false;
-        }
-        updateUI();
-    }
-
-    function action(type) {
-        if (!pet.isAlive) return;
+function updateUI() {
+    const stats = ['hunger', 'happy', 'energy'];
+    stats.forEach(stat => {
+        document.getElementById('val-' + stat).innerText = pet[stat];
+        const bar = document.getElementById('bar-' + stat);
+        bar.style.width = pet[stat] + '%';
         
-        vkBridge.send("VKWebAppTapticImpactOccurred", {"style": "light"});
-        triggerActionAnimation();
+        if (pet[stat] > 50) {
+            bar.style.backgroundColor = '#4bb34b';
+        } else if (pet[stat] > 20) {
+            bar.style.backgroundColor = '#ffa000';
+        } else {
+            bar.style.backgroundColor = '#e64646';
+        }
+    });
 
-        if (type === 'eat') {
-            pet.hunger = Math.min(100, pet.hunger + 20);
-            pet.energy = Math.max(0, pet.energy - 5);
-spawnParticles("🍗");} else if (type === 'play') {pet.happy = Math.min(100, pet.happy + 25);pet.hunger = Math.max(0, pet.hunger - 10);pet.energy = Math.max(0, pet.energy - 15);spawnParticles("❤️");} else if (type === 'sleep') {pet.energy = Math.min(100, pet.energy + 30);pet.hunger = Math.max(0, pet.hunger - 10);spawnParticles("💤");}updateUI();}function shareScore() {vkBridge.send("VKWebAppShare", {"link": "vk.com" + getAppId()});}function restartGame() {pet = { hunger: 50, happy: 50, energy: 50, isAlive: true, name: pet.name };document.getElementById('controls').classList.remove('hidden');document.getElementById('game-over').classList.add('hidden');startGame();}function startGame() {updateUI();gameInterval = setInterval(gameTick, 2000);}function getAppId() {const urlParams = new URLSearchParams(window.location.search);return urlParams.get('vk_app_id') || '0000000';}startGame();
+    updatePetVisual();
+
+    if (!pet.isAlive) {
+        clearInterval(gameInterval);
+        document.getElementById('controls').classList.add('hidden');
+        document.getElementById('game-over').classList.remove('hidden');
+        vkBridge.send("VKWebAppTapticNotificationOccurred", {
+            "type": "error"
+        });
+        saveGame(); // Сохраняем смерть питомца
+    }
+}
+
+function gameTick() {
+    pet.hunger = Math.max(0, pet.hunger - Math.floor(Math.random() * 3 + 2));
+    pet.happy = Math.max(0, pet.happy - Math.floor(Math.random() * 3 + 2));
+    pet.energy = Math.max(0, pet.energy - Math.floor(Math.random() * 2 + 1));
+
+    if (pet.hunger === 0 || pet.happy === 0 || pet.energy === 0) {
+        pet.isAlive = false;
+    }
+
+    updateUI();
+    saveGame(); // Автосохранение каждый игровой тик
+}
+
+function action(type) {
+    if (!pet.isAlive) return;
+
+    vkBridge.send("VKWebAppTapticImpactOccurred", { "style": "light" });
+    triggerActionAnimation();
+    playSound(type); // Запуск звука
+
+    if (type === 'eat') {
+        pet.hunger = Math.min(100, pet.hunger + 20);
+        pet.energy = Math.max(0, pet.energy - 5);
+        spawnParticles("🍗");
+    } else if (type === 'play') {
+        pet.happy = Math.min(100, pet.happy + 25);
+        pet.hunger = Math.max(0, pet.hunger - 10);
+        pet.energy = Math.max(0, pet.energy - 15);
+        spawnParticles("❤️");
+    } else if (type === 'sleep') {
+        pet.energy = Math.min(100, pet.energy + 30);
+        pet.hunger = Math.max(0, pet.hunger - 10);
+        spawnParticles("💤");
+    }
+
+    updateUI();
+    saveGame(); // Сохраняем после действия игрока
+}
+
+function shareScore() {
+    vkBridge.send("VKWebAppShare", { "link": "vk.com" + getAppId() });
+}
+
+function restartGame() {
+    pet = { 
+        hunger: 50, 
+        happy: 50, 
+        energy: 50, 
+        isAlive: true, 
+        name: pet.name 
+    };
+    document.getElementById('controls').classList.remove('hidden');
+    document.getElementById('game-over').classList.add('hidden');
+    saveGame();
+    startGame();
+}
+
+function startGame() {
+    loadGame(); // Загружаем старый прогресс перед началом игры
+    updateUI();
+    gameInterval = setInterval(gameTick, 2000);
+}
+
+function getAppId() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('vk_app_id') || '0000000';
+}
+
+startGame();
