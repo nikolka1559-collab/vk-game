@@ -1,224 +1,162 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Генератор статусов с Лидербордом</title>
-    <!-- Официальный зеркальный CDN ВКонтакте для стабильной загрузки Bridge -->
-    <script src="https://userapi.com"></script>
-    <style>
-        :root {
-            --vk-background: #ebedf0;
-            --vk-button: #2d81e0;
-            --vk-text: #000000;
-            --vk-panel: #ffffff;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
-            margin: 0; padding: 0;
-            background-color: var(--vk-background);
-            color: var(--vk-text);
-            display: flex; flex-direction: column; align-items: center;
-            min-height: 100vh; box-sizing: border-box;
-        }
-        .container { width: 100%; max-width: 400px; padding: 20px; text-align: center; box-sizing: border-box; }
-        
-        /* Панель прогресса */
-        .stats-panel {
-            background: var(--vk-panel); border-radius: 12px; padding: 12px 15px;
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            font-size: 14px; font-weight: 600;
-        }
-        .exp-badge { color: #4bb34b; }
-        .user-name { color: var(--vk-button); }
-
-        /* Лидерборд */
-        .leaderboard {
-            background: var(--vk-panel); border-radius: 12px; padding: 15px;
-            margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); text-align: left;
-        }
-        .leaderboard h3 { margin-top: 0; margin-bottom: 10px; font-size: 16px; text-align: center; }
-        .leader-item {
-            display: flex; justify-content: space-between; padding: 8px 0;
-            border-bottom: 1px solid rgba(0,0,0,0.05); font-size: 14px;
-        }
-        .leader-item:last-child { border-bottom: none; }
-        .place { font-weight: bold; margin-right: 8px; }
-
-        .select-box {
-            width: 100%; padding: 12px; font-size: 16px; border-radius: 10px;
-            border: 1px solid #ced4da; margin-bottom: 15px; background: #fff;
-        }
-        .card {
-            background: var(--vk-panel); border-radius: 16px; padding: 25px 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05); min-height: 100px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 17px; font-weight: 500; line-height: 1.4;
-            margin-bottom: 20px; border: 1px solid rgba(0,0,0,0.08);
-        }
-        .btn {
-            display: block; width: 100%; padding: 14px; font-size: 16px;
-            font-weight: 600; border: none; border-radius: 10px;
-            cursor: pointer; margin-bottom: 10px; transition: opacity 0.2s;
-        }
-        .btn:active { opacity: 0.8; }
-        .btn-primary { background-color: var(--vk-button); color: #fff; }
-        .btn-secondary { background-color: rgba(0,0,0,0.05); color: var(--vk-button); }
-        .btn-success { background-color: #4bb34b; color: #fff; }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <!-- Игровая панель -->
-    <div class="stats-panel">
-        <span class="user-name" id="userName">Загрузка профиля...</span>
-        <span>Ур: <span id="userLevel" class="exp-badge">1</span></span>
-        <span>Опыт: <span id="userExp" class="exp-badge">0</span> XP</span>
-    </div>
-
-    <!-- ТАБЛИЦА ЛИДЕРОВ -->
-    <div class="leaderboard">
-        <h3>🏆 Топ Лидеров Сообщества</h3>
-        <div id="leaderboardList">
-            <div style="text-align:center; color:gray; font-size:13px;">Синхронизация с ВК...</div>
-        </div>
-    </div>
-    
-    <select id="categorySelect" class="select-box">
-        <option value="work">💼 Про работу</option>
-        <option value="life">🛋️ Про жизнь</option>
-        <option value="philosophy">🦉 Мысли великих</option>
-    </select>
-
-    <div class="card" id="statusCard">Подпишитесь на группу и создайте статус, чтобы попасть в ТОП!</div>
-
-    <!-- Кнопки -->
-    <button class="btn btn-success" id="bonusBtn" onclick="claimDailyBonus()">🎁 Ежедневный бонус (+30 XP)</button>
-    <button class="btn btn-primary" onclick="generateStatus()">🎲 Сгенерировать статус</button>
-    <button class="btn btn-secondary" onclick="setStatusVK()">✨ Установить в статус ВК</button>
-    <button class="btn btn-secondary" onclick="shareToStory()">📸 Поделиться в Истории</button>
-</div>
-
 <script>
-    // НАСТРОЙКА: Укажите здесь ID вашей группы ВКонтакте (только цифры)
-    const GROUP_ID = 123456789; 
+    const GROUP_ID = 54697683; // замени на свой ID группы
 
-    let db = {};
-
-async function loadQuotes() {
-    try {
-        const response = await fetch('quotes.json');
-        if (!response.ok) throw new Error('Не удалось загрузить quotes.json');
-        db = await response.json();
-        console.log('Цитаты загружены:', db);
-    } catch (e) {
-        console.error('Ошибка загрузки цитат:', e);
-        // Если JSON не загрузился, можно подставить заглушки, чтобы игра не ломалась
-        db = {
-            work: ["Работа — это сложно. 😫"],
-            life: ["Жизнь — это интересно. 😊"],
-            philosophy: ["Мысль дня: думай меньше. 🧠"],
-            games: ["Играй и радуйся. 🎮"],
-            tech: ["Код работает… наверное. 💻"],
-            fun: ["Просто улыбнись. 😄"]
-        };
-    }
-}
-
-function initApp() {
-    if (typeof vkBridge === 'undefined') {
-        console.warn("VK Bridge не обнаружен (запуск вне ВК)");
-        fallbackInit();
-        return;
-    }
-
-    vkBridge.send("VKWebAppInit")
-        .then(() => {
-            console.log("VK Bridge успешно инициализирован");
-            getUserVkData();
-            checkGroupSubscription();
-            loadLeaderboard();
-            generateStatus();
-        })
-        .catch(err => {
-            console.error("Ошибка инициализации Bridge:", err);
-            fallbackInit();
-        });
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    loadQuotes(); // <-- сначала грузим цитаты
-    initApp();    // потом запускаем приложение
-});
-
+    // Все цитаты внутри кода — ничего не сломается из-за отсутствующего файла
+    const db = {
+        "work": [
+            "Дедлайн горит, а я только разогреваюсь. 🔥",
+            "Мой KPI: успеть выпить кофе до совещания. ☕",
+            "Работа — это когда ты знаешь, что можешь лучше, но уже 18:00. 🌙",
+            "Я не отвлекаюсь, я собираю контекст. 🧠",
+            "План на день: выжить. 🎯",
+            "В таск-трекере 100 задач, а я читаю эту строчку. 😵‍💫",
+            "Когда начальник пишет «срочно», у меня автоматически снижается скорость. 🐢",
+            "Совещание: 40 минут говорим, 2 минуты делаем. 🗣️",
+            "У меня не баг, у меня фича. 🛠️",
+            "Пятница начинается в среду. 😌"
+        ],
+        "life": [
+            "Счастье — это когда никто не трогает твой кофе. ☕",
+            "Взрослая жизнь: когда «хочу спать» — это хобби. 😴",
+            "Лучший отдых — лежать и не думать. 😌",
+            "Мои планы: ничего не планировать. 📅",
+            "Если не торопиться, день проходит спокойнее. 🧘",
+            "Иногда лучший выбор — вообще не выбирать. 🤷",
+            "Дом — это место, где можно не притворяться бодрым. 🏠",
+            "Тишина — мой любимый звук. 🔇",
+            "Сегодня я выбираю быть ленивым и горжусь этим. 😎",
+            "День прошёл нормально, если ничего не сломалось. ✅"
+        ],
+        "philosophy": [
+            "Мудрость — это знать, когда не надо ничего делать. 🦉",
+            "Время идёт, а я всё ещё в поиске себя. 🚶‍♂️",
+            "Смысл жизни: найти Wi‑Fi и выдохнуть. 📶",
+            "Чем меньше знаешь, тем крепче спишь. 💤",
+            "Не всё, что можно исправить, нужно исправлять. ⚖️",
+            "Жизнь — это баг, который мы пытаемся пофиксить. 🐞",
+            "Самое сложное — не усложнять. 🧩",
+            "Иногда тишина говорит громче слов. 🤫",
+            "Прогресс — это когда сегодня ты чуть меньше устал. 🌱",
+            "Спокойствие — это когда тебя никто не дёргает. 🕊️"
+        ],
+        "games": [
+            "Прошёл уровень, но потерял веру в себя. 🎮",
+            "Критический промах: уронил геймпад. 🎮💥",
+            "Ещё один рейд — и я либо стану легендой, либо уйду в офлайн навсегда. 🛡️",
+            "Сложность «Hard»: даже меню не хочет открываться. 🖥️",
+            "Лут: ноль, нервы: минус. 🎒",
+            "Когда игра говорит «ты справишься», она врёт. 😈",
+            "Победа: когда игра наконец перестала вылетать. 🏆",
+            "Таймер тикает, а я выбираю экипировку. ⏳",
+            "Босс не такой страшный, как пинг. 👹",
+            "Главное — не потерять сейв. 💾"
+        ],
+        "tech": [
+            "Код компилируется, но я не верю. 💻",
+            "Ошибка 404: мотивация не найдена. 🔍",
+            "Git: я сделал commit, но не помню зачем. 🤖",
+            "Сервер молчит — значит, всё сломалось. 📡",
+            "API отвечает, но на своём языке. 🌐",
+            "Frontend и Backend наконец договорились — и тут упал CI. 🏗️",
+            "Тестирование: найти баг, который ты сам и написал. 🐛",
+            "Документация: есть, но она про другую версию. 📖",
+            "Оптимизация: сделать так, чтобы работало быстрее и выглядело сложнее. ⚡",
+            "DevOps: когда ты не знаешь, где твой код, но он где-то работает. 🌀"
+        ],
+        "fun": [
+            "Я не опаздываю, я тестирую дедлайны. ⏱️",
+            "Моя продуктивность зависит от погоды и настроения кота. 🐱",
+            "Кофе — это топливо, без него я просто человек. ☕🚀",
+            "Если никто не заметил, значит, это была фича. 😉",
+            "Лучший план — отсутствие плана. 🗺️",
+            "Я не игнорирую сообщения, я в режиме энергосбережения. 🔋",
+            "Сегодня день «попробую, но без гарантий». 🤞",
+            "Мотивация приходит, когда уже всё сделано. 🏃‍♂️",
+            "Секрет успеха: делать вид, что всё под контролем. 😎",
+            "Я не застрял, я исследую варианты. 🧭"
+        ]
+    };
 
     let currentStatus = "";
     let isSubscribed = false;
     let myVkName = "Вы";
-
-    // Данные пользователя из локальной памяти (чтобы работало и без сети)
     let userExp = parseInt(localStorage.getItem('status_app_global_exp')) || 0;
     let userLevel = parseInt(localStorage.getItem('status_app_level')) || 1;
 
-    // Безопасный запуск VK Bridge
-    if (typeof vkBridge !== 'undefined') {
+    function safeGetElement(id) {
+        const el = document.getElementById(id);
+        if (!el) console.warn(`Элемент #${id} не найден!`);
+        return el;
+    }
+
+    function initApp() {
+        if (typeof vkBridge === 'undefined') {
+            console.warn("VK Bridge не обнаружен (запуск вне ВК)");
+            fallbackInit();
+            return;
+        }
+
         vkBridge.send("VKWebAppInit")
             .then(() => {
                 console.log("VK Bridge успешно инициализирован");
                 getUserVkData();
                 checkGroupSubscription();
                 loadLeaderboard();
+                generateStatus(); // цитата сразу при старте
             })
             .catch(err => {
-                console.error("Ошибка инициализации Bridge внутри ВК:", err);
+                console.error("Ошибка инициализации Bridge:", err);
                 fallbackInit();
             });
-    } else {
-        console.warn("Скрипт vkBridge не обнаружен (запуск вне ВКонтакте)");
-        setTimeout(fallbackInit, 500);
     }
 
-    // Резервный режим, если ВК недоступен (например, тест в браузере локально)
     function fallbackInit() {
-        document.getElementById("userName").innerText = "Тестовый Игрок";
-        document.getElementById("leaderboardList").innerHTML = '<div style="text-align:center; color:orange; font-size:12px;">Запущено вне ВК (демо-режим)</div>';
+        const userNameEl = safeGetElement("userName");
+        const leaderboardEl = safeGetElement("leaderboardList");
+        if (userNameEl) userNameEl.innerText = "Тестовый Игрок";
+        if (leaderboardEl) leaderboardEl.innerHTML = '<div style="text-align:center; color:orange; font-size:12px;">Запущено вне ВК (демо-режим)</div>';
         updateStatsUI();
     }
 
-    // Получаем имя пользователя из ВК
     function getUserVkData() {
         vkBridge.send("VKWebAppGetUserInfo")
             .then(data => {
                 if (data.first_name) {
-                    myVkName = `${data.first_name} ${data.last_name}.`;
-                    document.getElementById("userName").innerText = data.first_name;
+                    myVkName = `${data.first_name} ${data.last_name || ''}`.trim();
+                    const el = safeGetElement("userName");
+                    if (el) el.innerText = data.first_name;
                     updateStatsUI();
                     saveMyScore(); 
                 }
             })
             .catch(() => {
-                document.getElementById("userName").innerText = "Игрок";
+                const el = safeGetElement("userName");
+                if (el) el.innerText = "Игрок";
             });
     }
 
-    // Проверка подписки
     function checkGroupSubscription() {
         vkBridge.send("VKWebAppGetGroupToken", { "group_id": GROUP_ID, "scope": "groups" })
-        .then(() => { isSubscribed = true; })
-        .catch(() => { console.log("Всплывающее окно подписки активируется при клике"); });
+            .then(() => { isSubscribed = true; })
+            .catch(() => {});
     }
 
-    function requestSubscription() {
-        return vkBridge.send("VKWebAppJoinGroup", {"group_id": GROUP_ID})
-            .then(() => { isSubscribed = true; return true; })
-            .catch(() => { alert("Для генерации нужно подписаться на группу!"); return false; });
+    async function requestSubscription() {
+      try {
+        await vkBridge.send("VKWebAppJoinGroup", {"group_id": GROUP_ID});
+        isSubscribed = true;
+        return true;
+      } catch (e) {
+        alert("Для генерации нужно подписаться на группу!");
+        return false;
+      }
     }
 
     function updateStatsUI() {
-        document.getElementById("userExp").innerText = userExp;
-        document.getElementById("userLevel").innerText = userLevel;
+        const elLevel = safeGetElement("userLevel");
+        const elExp = safeGetElement("userExp");
+        if (elLevel) elLevel.innerText = userLevel;
+        if (elExp) elExp.innerText = userExp;
     }
 
     function addExperience(amount) {
@@ -243,34 +181,125 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         localStorage.setItem('status_app_bonus_time', now);
         addExperience(30);
-        document.getElementById("bonusBtn").style.display = "none";
+        const btn = safeGetElement("bonusBtn");
+        if (btn) btn.style.display = "none";
     }
 
-    // Сохранение в Лидерборд
     function saveMyScore() {
         const totalScore = (userLevel * 100) + userExp;
         
         vkBridge.send("VKWebAppStorageGet", {"keys": ["global_leaderboard"]})
-        .then(data => {
-            let list = [];
-            if(data.keys && data.keys[0] && data.keys[0].value) {
-                list = JSON.parse(data.keys[0].value);
-            }
-            
-            list = list.filter(item => item.name !== myVkName);
-            list.push({ name: myVkName, score: totalScore });
-            list.sort((a, b) => b.score - a.score);
-            list = list.slice(0, 5);
-            
-            vkBridge.send("VKWebAppStorageSet", {
-                "key": "global_leaderboard",
-                "value": JSON.stringify(list)
+            .then(data => {
+                let list = [];
+                if(data.keys && data.keys[0] && data.keys[0].value) {
+                    try {
+                        list = JSON.parse(data.keys[0].value);
+                    } catch (e) {
+                        console.error("Не удалось распарсить лидерборд:", e);
+                        list = [];
+                    }
+                }
+                
+                list = list.filter(item => item.name !== myVkName);
+                list.push({ name: myVkName, score: totalScore });
+                list.sort((a, b) => b.score - a.score);
+                list = list.slice(0, 5);
+                
+                vkBridge.send("VKWebAppStorageSet", {
+                    "key": "global_leaderboard",
+                    "value": JSON.stringify(list)
+                })
+                .then(() => loadLeaderboard())
+                .catch(err => console.error(err));
             })
-            .then(() => loadLeaderboard())
-            .catch(err => console.error(err));
-        });
+            .catch(err => console.error("Не удалось получить лидерборд для сохранения", err));
     }
 
-    // Загрузка Лидерборда
     function loadLeaderboard() {
-vkBridge.send("VKWebAppStorageGet", {"keys": ["global_leaderboard"]}).then(data => {const container = document.getElementById("leaderboardList");container.innerHTML = "";let list = [];if(data.keys && data.keys[0] && data.keys[0].value) {list = JSON.parse(data.keys[0].value);}if(list.length === 0) {container.innerHTML = 'Вы будете первым в списке!';return;}list.forEach((player, index) => {const medals = ["🥇", "🥈", "🥉", "👤", "👤"];const item = document.createElement("div");item.className = "leader-item";item.innerHTML = <div><span class="place">${medals[index] || "👤"}</span> ${player.name}</div> <div class="exp-badge">${player.score} XP</div>;container.appendChild(item);});}).catch(() => {document.getElementById("leaderboardList").innerHTML = 'Не удалось загрузить топ.';});}async function generateStatus() {if (typeof vkBridge !== 'undefined' && !isSubscribed) {const sub = await requestSubscription();if (!sub) return;}const category = document.getElementById("categorySelect").value;const statuses = db[category];currentStatus = statuses[Math.floor(Math.random() * statuses.length)];document.getElementById("statusCard").innerText = currentStatus;addExperience(5);}function setStatusVK() {if (!currentStatus) return alert("Сначала сгенерируйте статус!");if (typeof vkBridge === 'undefined') return alert("Изменение статуса доступно только внутри приложения ВК!");vkBridge.send("VKWebAppSetLocation", {"location": currentStatus}).then(() => { alert("Статус обновлен!"); addExperience(15); }).catch(() => alert("Ошибка изменения статуса."));}function shareToStory() {if (!currentStatus) return alert("Сначала сгенерируйте статус!");if (typeof vkBridge === 'undefined') return alert("Публикация историй доступна только внутри ВК!");vkBridge.send("VKWebAppShowStoryBox", {"background_type": "gradient", "gradient_color": "blue","stickers": [{"type": "text", "text": currentStatus, "style": "transparent_background", "alignment": "center", "font_size": 24}]}).then(() => addExperience(20)).catch(err => console.error(err));}
+        vkBridge.send("VKWebAppStorageGet", {"keys": ["global_leaderboard"]})
+            .then(data => {
+                const container = safeGetElement("leaderboardList");
+                if (!container) return;
+                container.innerHTML = "";
+                let list = [];
+                if(data.keys && data.keys[0] && data.keys[0].value) {
+                    try {
+                        list = JSON.parse(data.keys[0].value);
+                    } catch (e) {
+                        console.error("Не удалось распарсить сохранённый лидерборд:", e);
+                        list = [];
+                    }
+                }
+
+                if(list.length === 0) {
+                    container.innerHTML = 'Вы будете первым в списке!';
+                    return;
+                }
+
+                const medals = ["🥇", "🥈", "🥉", "👤", "👤"];
+                list.forEach((player, index) => {
+                    const item = document.createElement("div");
+                    item.className = "leader-item";
+                    const place = medals[index] || "👤";
+                    item.innerHTML = `<div><span class="place">${place}</span> ${player.name}</div>
+                                      <div class="exp-badge">${player.score} XP</div>`;
+                    container.appendChild(item);
+                });
+            })
+            .catch(() => {
+                const container = safeGetElement("leaderboardList");
+                if (container) container.innerHTML = 'Не удалось загрузить топ.';
+            });
+    }
+
+    function generateStatus() {
+        const selectEl = safeGetElement("categorySelect");
+        if (!selectEl) return;
+
+        const category = selectEl.value;
+        const statuses = db[category];
+        if (!statuses || statuses.length === 0) return;
+
+        currentStatus = statuses[Math.floor(Math.random() * statuses.length)];
+        const cardEl = safeGetElement("statusCard");
+        if (cardEl) cardEl.innerText = currentStatus;
+        addExperience(5);
+    }
+
+    function setStatusVK() {
+        if (!currentStatus) return alert("Сначала сгенерируйте цитату!");
+        if (typeof vkBridge === 'undefined') return alert("Изменение статуса доступно только внутри приложения ВК!");
+
+        vkBridge.send("VKWebAppSetLocation", {"location": currentStatus})
+            .then(() => { 
+                alert("Статус обновлен!"); 
+                addExperience(15); 
+            })
+            .catch(() => alert("Ошибка изменения статуса."));
+    }
+
+    function shareToStory() {
+        if (!currentStatus) return alert("Сначала сгенерируйте цитату!");
+        if (typeof vkBridge === 'undefined') return alert("Публикация историй доступна только внутри ВК!");
+
+        vkBridge.send("VKWebAppShowStoryBox", {
+            "background_type": "gradient", 
+            "gradient_color": "blue",
+            "stickers": [
+                {
+                    "type": "text", 
+                    "text": currentStatus, 
+                    "style": "transparent_background", 
+                    "alignment": "center", 
+                    "font_size": 24
+                }
+            ]
+        })
+        .then(() => addExperience(20))
+        .catch(err => console.error(err));
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initApp();
+    });
+</script>
