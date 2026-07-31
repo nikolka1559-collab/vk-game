@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Генератор статусов с Лидербордом</title>
 
-    <!-- ПРАВИЛЬНАЯ ПОДКЛЮЧКА VK BRIDGE -->
+    <!-- VK Bridge -->
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
 
     <style>
@@ -107,27 +107,10 @@
 </div>
 
 <script>
-    // НАСТРОЙКА: Вставь сюда ID своей группы ВКонтакте (только цифры)
-    const GROUP_ID = 55797203; 
+    // НАСТРОЙКА: укажи ID своей группы ВКонтакте (только цифры)
+    const GROUP_ID = 54697683; 
 
-    const db = {
-        work: [
-            "Работа не волк, работа — это я, и я хочу спать. 💻",
-            "Мой рабочий день: до обеда хочется есть, после обеда — спать. 🥪",
-            "Удаленная работа — это когда ты работаешь там же, где спишь. 🛋️"
-        ],
-        life: [
-            "В активном поиске... пульта от телевизора. 📺",
-            "Мои планы на день: Срочно отменить взрослую жизнь. 🦥",
-            "Ем, сплю и жду, когда наступит пятница. 😁"
-        ],
-        philosophy: [
-            "Мудрость приходит с возрастом, но иногда возраст приходит один. 🦉",
-            "Я не ленивый, я в энергосберегающем режиме. 🔋",
-            "Всё идёт хорошо, но мимо. 🌌"
-        ]
-    };
-
+    let db = null; // сюда загрузим quotes.json
     let currentStatus = "";
     let isSubscribed = false;
     let myVkName = "Вы";
@@ -141,11 +124,27 @@
         return el;
     }
 
+    // Загрузка quotes.json при старте
+    async function loadQuotes() {
+        try {
+            const res = await fetch('./quotes.json');
+            if (!res.ok) throw new Error('Не удалось загрузить quotes.json');
+            db = await res.json();
+            console.log('Цитаты загружены:', db);
+        } catch (e) {
+            console.error(e);
+            // Если JSON не загрузился — покажем понятную ошибку в карточке
+            const card = safeGet('statusCard');
+            if (card) card.innerText = 'Ошибка: quotes.json не найден или повреждён.';
+        }
+    }
+
     // Инициализация
     if (typeof vkBridge !== 'undefined') {
         vkBridge.send("VKWebAppInit")
             .then(() => {
                 console.log("VK Bridge готов");
+                loadQuotes(); // сначала грузим цитаты
                 getUserVkData();
                 checkGroupSubscription();
                 loadLeaderboard();
@@ -156,7 +155,7 @@
             });
     } else {
         console.warn("VK Bridge не найден (запуск вне ВК)");
-        setTimeout(fallbackInit, 500);
+        loadQuotes().then(() => fallbackInit());
     }
 
     function fallbackInit() {
@@ -168,6 +167,7 @@
     }
 
     function getUserVkData() {
+        if (!db) return; // ждём загрузки цитат
         vkBridge.send("VKWebAppGetUserInfo")
             .then(data => {
                 if (data.first_name) {
@@ -299,6 +299,12 @@
     }
 
     async function generateStatus() {
+        // ждём загрузки цитат
+        if (!db) {
+            alert('Цитаты ещё не загружены. Обновите страницу.');
+            return;
+        }
+
         if (typeof vkBridge !== 'undefined' && !isSubscribed) {
             const sub = await requestSubscription();
             if (!sub) return;
@@ -306,6 +312,10 @@
 
         const category = document.getElementById("categorySelect").value;
         const statuses = db[category];
+        if (!statuses || statuses.length === 0) {
+            safeGet("statusCard").innerText = `Нет цитат для категории "${category}"`;
+            return;
+        }
         currentStatus = statuses[Math.floor(Math.random() * statuses.length)];
         const card = safeGet("statusCard");
         if (card) card.innerText = currentStatus;
@@ -347,3 +357,4 @@
 </script>
 </body>
 </html>
+
