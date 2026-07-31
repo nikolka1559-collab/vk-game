@@ -106,9 +106,8 @@
 </div>
 
 <script>
-    const GROUP_ID = 54697683; // замени на свой ID группы
+    const GROUP_ID = 54697683; // Вставь сюда ID своей группы (если не тот)
 
-    // Все цитаты сразу в коде — никаких внешних файлов
     const db = {
         "work": [
             "Дедлайн горит, а я только разогреваюсь. 🔥",
@@ -197,7 +196,6 @@
     }
 
     function initApp() {
-        // Если не в ВК — включаем демо-режим и не ломаемся
         if (typeof vkBridge === 'undefined') {
             console.warn("VK Bridge не обнаружен (запуск вне ВК)");
             fallbackInit();
@@ -210,7 +208,7 @@
                 getUserVkData();
                 checkGroupSubscription();
                 loadLeaderboard();
-                generateStatus(); // цитата сразу при старте
+                generateStatus();
             })
             .catch(err => {
                 console.error("Ошибка инициализации Bridge:", err);
@@ -296,4 +294,18 @@
     function saveMyScore() {
         const totalScore = (userLevel * 100) + userExp;
         
-        vkBridge.send("VKWebAppStorageGet", {"
+        vkBridge.send("VKWebAppStorageGet", {"keys": ["global_leaderboard"]})
+            .then(data => {
+                let list = [];
+                if(data.keys && data.keys[0] && data.keys[0].value) {
+                    try {
+                        list = JSON.parse(data.keys[0].value);
+                    } catch (e) {
+                        console.error("Не удалось распарсить лидерборд:", e);
+                        list = [];
+                    }
+                }
+                
+                list = list.filter(item => item.name !== myVkName);
+                list.push({ name: myVkName, score: totalScore });
+                list.sort((a, b) => b.score - a.score);
