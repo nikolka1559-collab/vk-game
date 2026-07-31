@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <title>Битва цитат</title>
 
-    <!-- Стили VKUI (обязательно) -->
+    <!-- Стили VKUI -->
     <link rel="stylesheet" href="./vkui.css" />
 
-    <!-- VK Bridge из CDN (теперь это точно загрузится) -->
+    <!-- VK Bridge: официальная CDN-ссылка (гарантированно правильная версия) -->
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
 
     <style>
@@ -26,22 +26,21 @@
         padding: 20px;
         box-sizing: border-box;
       }
-      .loading-msg {
-        color: #888;
+      .status-text {
         text-align: center;
+        line-height: 1.5;
       }
-      .ready-msg {
-        color: #0077FF;
-        font-weight: bold;
-      }
+      .loading { color: #888; }
+      .success { color: #0077FF; font-weight: bold; }
+      .error { color: #FF4444; font-weight: bold; }
     </style>
   </head>
   <body>
     <div id="root">
-      <p class="loading-msg">⏳ Инициализация VK Bridge…</p>
+      <p class="status-text loading">⏳ Инициализация VK Bridge…</p>
     </div>
 
-    <!-- Твой код игры (подключается ПОСЛЕ vk-bridge) -->
+    <!-- Твой код игры -->
     <script src="./game.js"></script>
   </body>
 </html>
