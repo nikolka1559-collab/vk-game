@@ -1,117 +1,47 @@
 <!DOCTYPE html>
 <html lang="ru">
-<head>
-  <meta charset="UTF-8" />
-  <!-- Важно для мобильных устройств ВК: отключаем зум, фиксируем размер -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Битва цитат</title>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>Битва цитат</title>
 
-  <!-- Стили VKUI (интерфейс как в родном приложении ВК) -->
-  <!-- ВАЖНО: этот файл должен лежать в корне репозитория рядом с index.html -->
-  <link rel="stylesheet" href="./vkui.css" />
+    <!-- Стили VKUI (обязательно) -->
+    <link rel="stylesheet" href="./vkui.css" />
 
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", sans-serif;
-      background-color: #fff;
-      margin: 0;
-      padding: 0;
-      color: #222;
-    }
+    <!-- VK Bridge (обязательно первым) -->
+    <script src="./vk-bridge.min.js"></script>
 
-    .app-container {
-      padding: 16px;
-      max-width: 500px;
-      margin: 0 auto;
-    }
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+      }
+      #root {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+      .loading-msg {
+        color: #888;
+        text-align: center;
+      }
+      .ready-msg {
+        color: #0077FF;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <p class="loading-msg">⏳ Инициализация VK Bridge…</p>
+    </div>
 
-    /* Блок с цитатой */
-    .quote-box {
-      background: #f5f5f7;
-      padding: 20px;
-      border-radius: 12px;
-      text-align: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      margin-bottom: 24px;
-    }
-
-    .quote-text {
-      font-size: 18px;
-      font-weight: 500;
-      line-height: 1.4;
-      margin: 0;
-    }
-
-    /* Сетка кнопок */
-    .options-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    @media (max-width: 400px) {
-      .options-grid { grid-template-columns: 1fr; }
-    }
-
-    /* Кнопки вариантов ответа */
-    .option-btn {
-      padding: 14px;
-      font-size: 15px;
-      border: none;
-      border-radius: 8px;
-      background: #fff;
-      border: 1px solid #e0e0e0;
-      cursor: pointer;
-      text-align: left;
-      transition: all 0.2s;
-    }
-
-    .option-btn:active {
-      opacity: 0.8;
-    }
-
-    /* Полоска прогресса */
-    .progress-bar {
-      margin-top: 20px;
-      font-size: 15px;
-      color: #555;
-      text-align: center;
-    }
-
-    /* Стили для экрана старта/конца */
-    .centered-content {
-      padding: 20px;
-      text-align: center;
-    }
-  </style>
-</head>
-<body>
-  <div id="root" class="app-container"></div>
-
-  <!-- 1. ЭМУЛЯЦИЯ VK BRIDGE (только для тестов в обычном браузере) -->
-  <!-- Если ты открываешь ссылку НЕ внутри ВК, сработает эта заглушка -->
-  <script>
-    if (typeof vkBridge === 'undefined') {
-      console.log('[App] VK Bridge не найден. Включаем режим эмуляции для тестов.');
-      window.vkBridge = {
-        load: () => Promise.resolve(),
-        send: (method, params) => {
-          console.log('[VK Bridge Emulation] send:', method, params);
-          if (method === 'VKWebAppClose') {
-            alert('Приложение должно закрыться (эмуляция).');
-          }
-        },
-        on: () => {},
-        ready: () => Promise.resolve()
-      };
-    }
-  </script>
-
-  <!-- 2. ПОДКЛЮЧЕНИЕ VK BRIDGE -->
-  <!-- ВАЖНО: этот файл должен лежать в корне репозитория (скачать с unpkg и положить рядом) -->
-  <script src="./vk-bridge.min.js"></script>
-
-  <!-- 3. ОСНОВНОЙ СКРИПТ ИГРЫ -->
-  <script src="./game.js"></script>
-</body>
+    <!-- Твой код игры (подключается ПОСЛЕ vk-bridge) -->
+    <script src="./game.js"></script>
+  </body>
 </html>
