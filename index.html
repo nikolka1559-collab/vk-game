@@ -140,28 +140,12 @@
         <button onclick="restartGame()" style="width: 100%;">Начать заново</button>
     </div>
 </div>
-
 <script>
     let pet = { hunger: 50, happy: 50, energy: 50, isAlive: true, name: "Tamagotchi" };
     let gameInterval;
     let audioCtx = null;
 
-    vkBridge.load()
-        .then(() => {
-            vkBridge.send('VKWebAppInit');
-            return vkBridge.send('VKWebAppGetUserInfo');
-        })
-        .then(data => {
-            if (data.first_name) {
-                document.getElementById('user-info').innerText = 'Owner: ' + data.first_name + ' ' + (data.last_name || '');
-                pet.name = 'Pet ' + data.first_name;
-                document.getElementById('pet-name').innerText = pet.name;
-            }
-        })
-        .catch(() => {
-            document.getElementById('user-info').innerText = "Local Game Mode";
-        });
-
+    // --- ЗВУКОВОЙ ДВИЖОК (Web Audio API) ---
     function initAudio() {
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -206,6 +190,7 @@
         }
     }
 
+    // --- СИСТЕМА СОХРАНЕНИЙ ---
     function saveGame() {
         localStorage.setItem('vk_tamagotchi_save', JSON.stringify(pet));
     }
@@ -220,6 +205,7 @@
         }
     }
 
+    // Генерация летающих частиц
     function spawnParticles(emoji) {
         const stage = document.getElementById('pet-stage');
         for (let i = 0; i < 4; i++) {
@@ -238,9 +224,12 @@
 
     function updatePetVisual() {
         const avatarEl = document.getElementById('pet-avatar');
+        if (!pet.isAlive) {
+            avatarEl.innerText = "👻";
+            return;
+        }
         const minStat = Math.min(pet.hunger, pet.happy, pet.energy);
-
-        if (minStat <= 15) {
+        if (minStat <= 20) {
             avatarEl.innerText = "😭";
         } else if (minStat <= 45) {
             avatarEl.innerText = "🥺";
@@ -254,7 +243,7 @@
     function triggerActionAnimation() {
         const avatarEl = document.getElementById('pet-avatar');
         avatarEl.classList.remove('jump-animation');
-        void avatarEl.offsetWidth; // принудительный reflow
+        void avatarEl.offsetWidth; 
         avatarEl.classList.add('jump-animation');
     }
 
@@ -264,14 +253,9 @@
             document.getElementById('val-' + stat).innerText = pet[stat];
             const bar = document.getElementById('bar-' + stat);
             bar.style.width = pet[stat] + '%';
-            
-            if (pet[stat] > 50) {
-                bar.style.backgroundColor = '#4bb34b';
-            } else if (pet[stat] > 20) {
-                bar.style.backgroundColor = '#ffa000';
-            } else {
-                bar.style.backgroundColor = '#e64646';
-            }
+            if (pet[stat] > 50) bar.style.backgroundColor = '#4bb34b';
+            else if (pet[stat] > 20) bar.style.backgroundColor = '#ffa000';
+            else bar.style.backgroundColor = '#e64646';
         });
 
         updatePetVisual();
@@ -280,10 +264,7 @@
             clearInterval(gameInterval);
             document.getElementById('controls').classList.add('hidden');
             document.getElementById('game-over').classList.remove('hidden');
-            // Можно отправить уведомление, если мост уже загружен
-            try {
-                vkBridge.send("VKWebAppTapticNotificationOccurred", { type: "error" });
-            } catch (e) {}
+            vkBridge.send("VKWebAppTapticNotificationOccurred", {"type": "error"});
             saveGame();
         }
     }
@@ -296,19 +277,85 @@
         if (pet.hunger === 0 || pet.happy === 0 || pet.energy === 0) {
             pet.isAlive = false;
         }
-
         updateUI();
         saveGame();
     }
 
-    
     function action(type) {
         if (!pet.isAlive) return;
         
         vkBridge.send("VKWebAppTapticImpactOccurred", {"style": "light"});
         triggerActionAnimation();
+        playSound(type);
 
         if (type === 'eat') {
             pet.hunger = Math.min(100, pet.hunger + 20);
             pet.energy = Math.max(0, pet.energy - 5);
-spawnParticles("🍗");} else if (type === 'play') {pet.happy = Math.min(100, pet.happy + 25);pet.hunger = Math.max(0, pet.hunger - 10);pet.energy = Math.max(0, pet.energy - 15);spawnParticles("❤️");} else if (type === 'sleep') {pet.energy = Math.min(100, pet.energy + 30);pet.hunger = Math.max(0, pet.hunger - 10);spawnParticles("💤");}updateUI();}function shareScore() {vkBridge.send("VKWebAppShare", {"link": "vk.com" + getAppId()});}function restartGame() {pet = { hunger: 50, happy: 50, energy: 50, isAlive: true, name: pet.name };document.getElementById('controls').classList.remove('hidden');document.getElementById('game-over').classList.add('hidden');startGame();}function startGame() {updateUI();gameInterval = setInterval(gameTick, 2000);}function getAppId() {const urlParams = new URLSearchParams(window.location.search);return urlParams.get('vk_app_id') || '0000000';}startGame();
+            spawnParticles("🍗");
+        } else if (type === 'play') {
+            pet.happy = Math.min(100, pet.happy + 25);
+            pet.hunger = Math.max(0, pet.hunger - 10);
+            pet.energy = Math.max(0, pet.energy - 15);
+            spawnParticles("❤️");
+        } else if (type === 'sleep') {
+            pet.energy = Math.min(100, pet.energy + 30);
+            pet.hunger = Math.max(0, pet.hunger - 10);
+            spawnParticles("💤");
+        }
+        updateUI();
+        saveGame();
+    }
+
+    function shareScore() {
+        vkBridge.send("VKWebAppShare", {
+            "link": "https://vk.com" + getAppId()
+        });
+    }
+
+    function restartGame() {
+        pet = { hunger: 50, happy: 50, energy: 50, isAlive: true, name: pet.name };
+        document.getElementById('controls').classList.remove('hidden');
+        document.getElementById('game-over').classList.add('hidden');
+        saveGame();
+        startGame();
+    }
+
+    function getAppId() {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get('vk_app_id') || '0000000';
+    }
+
+    function startGame() {
+        loadGame();
+        updateUI();
+        if (gameInterval) clearInterval(gameInterval);
+        gameInterval = setInterval(gameTick, 2000);
+    }
+
+    // ИСПРАВЛЕНИЕ: Инициализируем VK только после того, как вся страница загрузилась в браузере
+    window.addEventListener('load', () => {
+        vkBridge.send("VKWebAppInit", {})
+            .then(() => {
+                vkBridge.send("VKWebAppGetUserInfo")
+                    .then(data => {
+                        if (data.first_name) {
+                            document.getElementById('user-info').innerText = 'Owner: ' + data.first_name + ' ' + data.last_name;
+                            pet.name = 'Pet ' + data.first_name;
+                            document.getElementById('pet-name').innerText = pet.name;
+                        }
+                    })
+                    .catch(() => {
+                        document.getElementById('user-info').innerText = "Local Game Mode";
+                    });
+            })
+            .catch((err) => {
+                console.log("VK Bridge Error:", err);
+                document.getElementById('user-info').innerText = "Local Game Mode";
+            });
+
+        // Запуск игры
+        startGame();
+    });
+</script>
+</body>
+</html>
