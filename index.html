@@ -315,37 +315,33 @@ function startGame() {
 }
 
 // БРОНЕБОЙНАЯ ИНИЦИАЛИЗАЦИЯ
-function initVK() {
-    document.getElementById('user-info').innerText = "Игра готова / Ожидание VK...";
-    startGame();
+    function initVK() {
+        document.getElementById('user-info').innerText = "Ожидание VK...";
+        startGame();
 
-    // Проверяем, загрузился ли скрипт VK вообще
-    if (typeof vkBridge !== 'undefined') {
-        vkBridge.send("VKWebAppInit", {})
-            .then(() => {
-                vkBridge.send("VKWebAppGetUserInfo")
-                    .then(data => {
-                        if (data.first_name) {
-                            document.getElementById('user-info').innerText = 'Хозяин: ' + data.first_name + ' ' + data.last_name;
-                            pet.name = 'Питомец ' + data.first_name;
-                            document.getElementById('pet-name').innerText = pet.name;
-                        }
-                    })
-                    .catch(() => { 
-                        document.getElementById('user-info').innerText = "Запущено в VK"; 
-                    });
-            })
-            .catch(() => { 
-                document.getElementById('user-info').innerText = "Локальный режим"; 
-            });
-    } else {
-        document.getElementById('user-info').innerText = "Режим без VK Bridge";
+        if (typeof vkBridge !== 'undefined') {
+            vkBridge.send("VKWebAppInit", {})
+                .then(() => {
+                    vkBridge.send("VKWebAppGetUserInfo")
+                        .then(data => {
+                            if (data.first_name) {
+                                document.getElementById('user-info').innerText = 'Хозяин: ' + data.first_name + ' ' + data.last_name;
+                                pet.name = 'Питомец ' + data.first_name;
+                                document.getElementById('pet-name').innerText = pet.name;
+                            }
+                        }).catch(() => { document.getElementById('user-info').innerText = "Запущено в VK"; });
+                })
+                .catch(() => { document.getElementById('user-info').innerText = "Локальный режим"; });
+        } else {
+            document.getElementById('user-info').innerText = "Режим без VK Bridge";
+        }
     }
-}
 
-// Стартуем сразу, как браузер построит структуру окна
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initVK);
-} else {
-    initVK();
-}
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initVK);
+    } else {
+        initVK();
+    }
+</script>
+</body>
+</html>
