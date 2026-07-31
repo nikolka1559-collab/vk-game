@@ -1,7 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Битва цитат</title>
+
+    <!-- VK Bridge (обязательно) -->
+    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+
+    <style>
+        :root {
+            --vk-background: #ebedf0;
+            --vk-button: #2d81e0;
+            --vk-text: #000000;
+            --vk-panel: #ffffff;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --vk-background: #1c1c1e;
+                --vk-panel: #2c2c31;
+                --vk-text: #e0e0e0;
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+            margin: 0; padding: 0;
+            background-color: var(--vk-background);
+            color: var(--vk-text);
+            display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh; box-sizing: border-box;
+        }
+        .container { width: 100%; max-width: 400px; padding: 20px; text-align: center; box-sizing: border-box; }
+        .stats-panel {
+            background: var(--vk-panel); border-radius: 12px; padding: 12px 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            font-size: 14px; font-weight: 600;
+        }
+        .exp-badge { color: #4bb34b; }
+        .user-name { color: var(--vk-button); }
+        .leaderboard {
+            background: var(--vk-panel); border-radius: 12px; padding: 15px;
+            margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); text-align: left;
+        }
+        .leaderboard h3 { margin-top: 0; margin-bottom: 10px; font-size: 16px; text-align: center; }
+        .leader-item {
+            display: flex; justify-content: space-between; padding: 8px 0;
+            border-bottom: 1px solid rgba(0,0,0,0.05); font-size: 14px;
+        }
+        .place { font-weight: bold; margin-right: 8px; }
+        .select-box {
+            width: 100%; padding: 12px; font-size: 16px; border-radius: 10px;
+            border: 1px solid #ced4da; margin-bottom: 15px; background: #fff;
+        }
+        .card {
+            background: var(--vk-panel); border-radius: 16px; padding: 25px 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); min-height: 100px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 17px; font-weight: 500; line-height: 1.4;
+            margin-bottom: 20px; border: 1px solid rgba(0,0,0,0.08);
+        }
+        .btn {
+            display: block; width: 100%; padding: 14px; font-size: 16px;
+            font-weight: 600; border: none; border-radius: 10px;
+            cursor: pointer; margin-bottom: 10px; transition: opacity 0.2s;
+        }
+        .btn:active { opacity: 0.8; }
+        .btn-primary { background-color: var(--vk-button); color: #fff; }
+        .btn-secondary { background-color: rgba(0,0,0,0.05); color: var(--vk-button); }
+        .btn-success { background-color: #4bb34b; color: #fff; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="stats-panel">
+        <span class="user-name" id="userName">Загрузка профиля...</span>
+        <span>Ур: <span id="userLevel" class="exp-badge">1</span></span>
+        <span>Опыт: <span id="userExp" class="exp-badge">0</span> XP</span>
+    </div>
+
+    <div class="leaderboard">
+        <h3>🏆 Топ Лидеров</h3>
+        <div id="leaderboardList">
+            <div style="text-align:center; color:gray; font-size:13px;">Синхронизация с ВК...</div>
+        </div>
+    </div>
+    
+    <select id="categorySelect" class="select-box">
+        <option value="work">💼 Про работу</option>
+        <option value="life">🛋️ Про жизнь</option>
+        <option value="philosophy">🦉 Философия</option>
+        <option value="games">🎮 Игры</option>
+        <option value="tech">💻 Технологии</option>
+        <option value="fun">😄 Юмор</option>
+    </select>
+
+    <div class="card" id="statusCard">Нажмите «Сгенерировать статус», чтобы получить цитату!</div>
+
+    <button class="btn btn-success" id="bonusBtn" onclick="claimDailyBonus()">🎁 Ежедневный бонус (+30 XP)</button>
+    <button class="btn btn-primary" onclick="generateStatus()">🎲 Сгенерировать статус</button>
+    <button class="btn btn-secondary" onclick="setStatusVK()">✨ Установить в статус ВК</button>
+    <button class="btn btn-secondary" onclick="shareToStory()">📸 Поделиться в Истории</button>
+</div>
+
 <script>
     const GROUP_ID = 54697683; // замени на свой ID группы
 
-    // Все цитаты внутри кода — ничего не сломается из-за отсутствующего файла
+    // Все цитаты сразу в коде — никаких внешних файлов
     const db = {
         "work": [
             "Дедлайн горит, а я только разогреваюсь. 🔥",
@@ -90,6 +197,7 @@
     }
 
     function initApp() {
+        // Если не в ВК — включаем демо-режим и не ломаемся
         if (typeof vkBridge === 'undefined') {
             console.warn("VK Bridge не обнаружен (запуск вне ВК)");
             fallbackInit();
@@ -188,118 +296,4 @@
     function saveMyScore() {
         const totalScore = (userLevel * 100) + userExp;
         
-        vkBridge.send("VKWebAppStorageGet", {"keys": ["global_leaderboard"]})
-            .then(data => {
-                let list = [];
-                if(data.keys && data.keys[0] && data.keys[0].value) {
-                    try {
-                        list = JSON.parse(data.keys[0].value);
-                    } catch (e) {
-                        console.error("Не удалось распарсить лидерборд:", e);
-                        list = [];
-                    }
-                }
-                
-                list = list.filter(item => item.name !== myVkName);
-                list.push({ name: myVkName, score: totalScore });
-                list.sort((a, b) => b.score - a.score);
-                list = list.slice(0, 5);
-                
-                vkBridge.send("VKWebAppStorageSet", {
-                    "key": "global_leaderboard",
-                    "value": JSON.stringify(list)
-                })
-                .then(() => loadLeaderboard())
-                .catch(err => console.error(err));
-            })
-            .catch(err => console.error("Не удалось получить лидерборд для сохранения", err));
-    }
-
-    function loadLeaderboard() {
-        vkBridge.send("VKWebAppStorageGet", {"keys": ["global_leaderboard"]})
-            .then(data => {
-                const container = safeGetElement("leaderboardList");
-                if (!container) return;
-                container.innerHTML = "";
-                let list = [];
-                if(data.keys && data.keys[0] && data.keys[0].value) {
-                    try {
-                        list = JSON.parse(data.keys[0].value);
-                    } catch (e) {
-                        console.error("Не удалось распарсить сохранённый лидерборд:", e);
-                        list = [];
-                    }
-                }
-
-                if(list.length === 0) {
-                    container.innerHTML = 'Вы будете первым в списке!';
-                    return;
-                }
-
-                const medals = ["🥇", "🥈", "🥉", "👤", "👤"];
-                list.forEach((player, index) => {
-                    const item = document.createElement("div");
-                    item.className = "leader-item";
-                    const place = medals[index] || "👤";
-                    item.innerHTML = `<div><span class="place">${place}</span> ${player.name}</div>
-                                      <div class="exp-badge">${player.score} XP</div>`;
-                    container.appendChild(item);
-                });
-            })
-            .catch(() => {
-                const container = safeGetElement("leaderboardList");
-                if (container) container.innerHTML = 'Не удалось загрузить топ.';
-            });
-    }
-
-    function generateStatus() {
-        const selectEl = safeGetElement("categorySelect");
-        if (!selectEl) return;
-
-        const category = selectEl.value;
-        const statuses = db[category];
-        if (!statuses || statuses.length === 0) return;
-
-        currentStatus = statuses[Math.floor(Math.random() * statuses.length)];
-        const cardEl = safeGetElement("statusCard");
-        if (cardEl) cardEl.innerText = currentStatus;
-        addExperience(5);
-    }
-
-    function setStatusVK() {
-        if (!currentStatus) return alert("Сначала сгенерируйте цитату!");
-        if (typeof vkBridge === 'undefined') return alert("Изменение статуса доступно только внутри приложения ВК!");
-
-        vkBridge.send("VKWebAppSetLocation", {"location": currentStatus})
-            .then(() => { 
-                alert("Статус обновлен!"); 
-                addExperience(15); 
-            })
-            .catch(() => alert("Ошибка изменения статуса."));
-    }
-
-    function shareToStory() {
-        if (!currentStatus) return alert("Сначала сгенерируйте цитату!");
-        if (typeof vkBridge === 'undefined') return alert("Публикация историй доступна только внутри ВК!");
-
-        vkBridge.send("VKWebAppShowStoryBox", {
-            "background_type": "gradient", 
-            "gradient_color": "blue",
-            "stickers": [
-                {
-                    "type": "text", 
-                    "text": currentStatus, 
-                    "style": "transparent_background", 
-                    "alignment": "center", 
-                    "font_size": 24
-                }
-            ]
-        })
-        .then(() => addExperience(20))
-        .catch(err => console.error(err));
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        initApp();
-    });
-</script>
+        vkBridge.send("VKWebAppStorageGet", {"
